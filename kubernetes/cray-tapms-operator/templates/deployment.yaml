@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cray-tapms-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    hpe-operator: cray-tapms
+    app: cray-tapms-operator
+spec:
+  selector:
+    matchLabels:
+      hpe-operator: cray-tapms
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        hpe-operator: cray-tapms
+        app: cray-tapms-operator
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - cray-tapms-operator
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: cray-tapms-operator
+      containers:
+      - command:
+        - /manager
+        args:
+        - --namespace
+        - tenants
+        image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        name: cray-tapms-operator
+        resources:
+          limits:
+            cpu: 100m
+            memory: 30Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      terminationGracePeriodSeconds: 10
