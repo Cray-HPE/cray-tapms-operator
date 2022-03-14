@@ -91,6 +91,28 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+# Chart args
+CHART_PATH ?= kubernetes
+CHART_VERSION ?= local
+HELM_UNITTEST_IMAGE ?= quintush/helm-unittest:3.3.0-0.2.5
+
+image:
+	docker build --pull ${DOCKER_ARGS} --tag '${NAME}:${VERSION}' .
+
+chart: chart_setup chart_package chart_test
+
+chart_setup:
+	mkdir -p ${CHART_PATH}/.packaged
+
+chart_package:
+	echo "appVersion: ${VERSION}" >> ${CHART_PATH}/${NAME}/Chart.yaml
+	helm dep up ${CHART_PATH}/${NAME}
+	helm package ${CHART_PATH}/${NAME} -d ${CHART_PATH}/.packaged --version ${CHART_VERSION}
+
+chart_test:
+	helm lint "${CHART_PATH}/${NAME}"
+	docker run --rm -v ${PWD}/${CHART_PATH}:/apps ${HELM_UNITTEST_IMAGE} -3 ${NAME}
+
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
