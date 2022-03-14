@@ -25,14 +25,4 @@ image:
   repository: artifactory.algol60.net/csm-docker/stable/cray-tapms-operator
   tag: v0.0.1
   pullPolicy: IfNotPresent
-
-#
-# When changing the hnc image, also pull a fresh hnc-manager.yaml in the templates
-# directory from:
-#
-# https://github.com/kubernetes-sigs/hierarchical-namespaces/releases/download/${HNC_VERSION}/hnc-manager.yaml
-#
-hnc:
-  image:
-    repository: gcr.io/k8s-staging-multitenancy/hnc-manager
-    tag: v0.9.0
+numReplicas: 1

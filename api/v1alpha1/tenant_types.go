@@ -1,4 +1,29 @@
 /*
+ *
+ *  MIT License
+ *
+ *  (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a
+ *  copy of this software and associated documentation files (the "Software"),
+ *  to deal in the Software without restriction, including without limitation
+ *  the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ *  and/or sell copies of the Software, and to permit persons to whom the
+ *  Software is furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included
+ *  in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ *  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *  OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+/*
 Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,17 +43,27 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	api "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+type TenantResource struct {
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
+	Type    string `json:"type"`
+	Percent int32  `json:"percent"`
+	Filter  string `json:"filter"`
+}
 
 // TenantSpec defines the desired state of Tenant
 type TenantSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Name string `json:"name,omitempty"`
+	TenantName      string           `json:"tenantname"`
+	TenantResources []TenantResource `json:"tenantresource"`
 }
 
 // TenantStatus defines the observed state of Tenant
@@ -59,5 +94,5 @@ type TenantList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Tenant{}, &TenantList{})
+	SchemeBuilder.Register(&Tenant{}, &TenantList{}, &api.SubnamespaceAnchor{})
 }
