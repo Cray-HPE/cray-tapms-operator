@@ -43,7 +43,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -94,5 +93,5 @@ type TenantList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Tenant{}, &TenantList{}, &api.SubnamespaceAnchor{})
+	SchemeBuilder.Register(&Tenant{}, &TenantList{})
 }

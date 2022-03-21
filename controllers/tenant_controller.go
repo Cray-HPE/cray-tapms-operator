@@ -43,7 +43,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,8 +119,6 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	} else if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	fmt.Printf("%+v\n", subNsAnchor)
 
 	return ctrl.Result{}, nil
 }
