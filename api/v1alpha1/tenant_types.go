@@ -51,9 +51,8 @@ import (
 type TenantResource struct {
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:MinLength=1
-	Type    string `json:"type"`
-	Percent int32  `json:"percent"`
-	Filter  string `json:"filter"`
+	Type   string   `json:"type"`
+	Xnames []string `json:"xnames"`
 }
 
 // TenantSpec defines the desired state of Tenant
@@ -62,6 +61,7 @@ type TenantSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	TenantName      string           `json:"tenantname"`
+	ChildNamespaces []string         `json:"childnamespaces"`
 	TenantResources []TenantResource `json:"tenantresource"`
 }
 

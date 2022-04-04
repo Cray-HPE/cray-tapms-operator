@@ -58,27 +58,30 @@ spec:
           spec:
             description: TenantSpec defines the desired state of Tenant
             properties:
+              childnamespaces:
+                items:
+                  type: string
+                type: array
               tenantname:
                 type: string
               tenantresource:
                 items:
                   properties:
-                    filter:
-                      type: string
-                    percent:
-                      format: int32
-                      type: integer
                     type:
                       maxLength: 255
                       minLength: 1
                       type: string
+                    xnames:
+                      items:
+                        type: string
+                      type: array
                   required:
-                  - filter
-                  - percent
                   - type
+                  - xnames
                   type: object
                 type: array
             required:
+            - childnamespaces
             - tenantname
             - tenantresource
             type: object
