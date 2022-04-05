@@ -58,6 +58,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const tenantFinalizer = "tapms.hpe.com/finalizer"
+
 // TenantReconciler reconciles a Tenant object
 type TenantReconciler struct {
 	client.Client
@@ -65,17 +67,38 @@ type TenantReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *TenantReconciler) subNSAnchorForTenant(t *v1alpha1.Tenant) *api.SubnamespaceAnchor {
+func (r *TenantReconciler) subNSAnchorForTenant(parentObj metav1.Object, parentNs string, childNs string) *api.SubnamespaceAnchor {
 
 	anchor := &api.SubnamespaceAnchor{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      t.Name,
-			Namespace: "tenants",
+			Name:      childNs,
+			Namespace: parentNs,
 		},
 	}
-
-	controllerutil.SetControllerReference(t, anchor, r.Scheme)
+	//controllerutil.SetControllerReference(parentObj, anchor, r.Scheme)
 	return anchor
+}
+
+func (r *TenantReconciler) ensureSubanchorNSExists(log logr.Logger, ctx context.Context, parentObj metav1.Object, parentNs string, childNs string) (*api.SubnamespaceAnchor, ctrl.Result, error) {
+
+	subNsAnchor := &api.SubnamespaceAnchor{}
+	log.Info("Checking to see if tenant subanchor exists: " + childNs + " in parent namespace: " + parentNs)
+	err := r.Client.Get(ctx, types.NamespacedName{Namespace: parentNs, Name: childNs}, subNsAnchor)
+
+	// subanchor does not exist, try to create it
+	if err != nil && k8serrors.IsNotFound(err) {
+		log.Info("Tenant subanchor not found, creating: " + childNs)
+		subNsAnchor = r.subNSAnchorForTenant(parentObj, parentNs, childNs)
+		err = r.Client.Create(ctx, subNsAnchor)
+		if err != nil {
+			return nil, ctrl.Result{}, err
+		}
+		return subNsAnchor, ctrl.Result{}, nil
+	} else if err != nil {
+		return nil, ctrl.Result{}, err
+	}
+
+	return subNsAnchor, ctrl.Result{}, nil
 }
 
 //+kubebuilder:rbac:groups=tapms.hpe.com,resources=tenants,verbs=get;list;watch;create;update;patch;delete
@@ -103,21 +126,52 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	subNsAnchor := &api.SubnamespaceAnchor{}
-	log.Info("Checking to see if tenant subanchor exists: " + tenant.Spec.TenantName)
-	err = r.Client.Get(ctx, types.NamespacedName{Namespace: "tenants", Name: tenant.Spec.TenantName}, subNsAnchor)
+	parentSubNsAnchor, result, err := r.ensureSubanchorNSExists(log, ctx, tenant, "tenants", tenant.Spec.TenantName)
 
-	// tenant subanchor does not exist, try to create it
-	if err != nil && k8serrors.IsNotFound(err) {
-		log.Info("Tenant subanchor not found, creating: " + tenant.Spec.TenantName)
-		subNsAnchor = r.subNSAnchorForTenant(tenant)
-		err = r.Client.Create(ctx, subNsAnchor)
+	if err != nil {
+		return result, err
+	}
+
+	isTenantMarkedToBeDeleted := tenant.GetDeletionTimestamp() != nil
+	if !isTenantMarkedToBeDeleted {
+		if tenant.Spec.ChildNamespaces != nil {
+			for _, childNamespace := range tenant.Spec.ChildNamespaces {
+				childNs := tenant.Spec.TenantName + "-" + childNamespace
+				_, result, err := r.ensureSubanchorNSExists(log, ctx, parentSubNsAnchor, tenant.Spec.TenantName, childNs)
+				if err != nil {
+					return result, err
+				}
+			}
+		}
+	}
+
+	if isTenantMarkedToBeDeleted {
+		if controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
+			// Run finalization logic for tenantFinalizer. If the
+			// finalization logic fails, don't remove the finalizer so
+			// that we can retry during the next reconciliation.
+			if err := r.finalizeTenant(ctx, log, tenant); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			// Remove tenantFinalizer. Once all finalizers have been
+			// removed, the object will be deleted.
+			controllerutil.RemoveFinalizer(tenant, tenantFinalizer)
+			err := r.Update(ctx, tenant)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Add finalizer for this CR
+	if !controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
+		controllerutil.AddFinalizer(tenant, tenantFinalizer)
+		err = r.Update(ctx, tenant)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
-	} else if err != nil {
-		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -127,6 +181,43 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tapmshpecomv1alpha1.Tenant{}).
-		Owns(&api.SubnamespaceAnchor{}).
+		//		Owns(&api.SubnamespaceAnchor{}).
 		Complete(r)
+}
+
+func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) error {
+	//
+	// First delete the child namespaces/anchors
+	//
+	for _, childNamespace := range t.Spec.ChildNamespaces {
+		childNs := t.Spec.TenantName + "-" + childNamespace
+		log.Info("Deleting child namespace: " + childNs)
+		anchor := r.subNSAnchorForTenant(nil, t.Spec.TenantName, childNs)
+		err := r.Client.Delete(ctx, anchor)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				log.Info("Child namespace already deleted: " + childNs)
+			} else {
+				log.Error(err, "Failed to delete child namespace: "+childNs)
+				return err
+			}
+		}
+	}
+
+	//
+	// Now delete the parent namespace/anchor
+	//
+	log.Info("Deleting parent namespace: " + t.Spec.TenantName)
+	anchor := r.subNSAnchorForTenant(nil, "tenants", t.Spec.TenantName)
+	err := r.Client.Delete(ctx, anchor)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			log.Info("Parent namespace already deleted: " + t.Spec.TenantName)
+		} else {
+			log.Error(err, "Failed to delete parent namespace: "+t.Spec.TenantName)
+			return err
+		}
+	}
+
+	return nil
 }
