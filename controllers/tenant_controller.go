@@ -43,6 +43,7 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,6 +65,38 @@ type TenantReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+}
+
+func (r *TenantReconciler) Difference(a, b []string) (diff []string) {
+	m := make(map[string]bool)
+
+	for _, item := range b {
+		m[item] = true
+	}
+
+	for _, item := range a {
+		if _, ok := m[item]; !ok {
+			diff = append(diff, item)
+		}
+	}
+	return
+}
+func (r *TenantReconciler) DeleteChildNamespaces(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, childNamespaces []string) (ctrl.Result, error) {
+	for _, childNamespace := range childNamespaces {
+		childNs := t.Spec.TenantName + "-" + childNamespace
+		log.Info("Deleted child namespace: " + childNs)
+		anchor := r.subNSAnchorForTenant(t.Spec.TenantName, childNs)
+		err := r.Client.Delete(ctx, anchor)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				log.Info("Child namespace already deleted: " + childNs)
+			} else {
+				log.Error(err, "Failed to delete child namespace: "+childNs)
+				return ctrl.Result{}, err
+			}
+		}
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *TenantReconciler) subNSAnchorForTenant(parentNs string, childNs string) *api.SubnamespaceAnchor {
@@ -118,8 +151,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			log.Info("CR not found (deleted?). Ignoring")
-			return ctrl.Result{}, nil // don't reqeueue
+			log.Info("Tenant resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
 		}
 	}
 
@@ -143,6 +176,23 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				}
 			}
 		}
+
+		if !reflect.DeepEqual(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces) {
+			log.Info("Updating tenant status")
+			deletedChildNamespaces := r.Difference(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces)
+			r.DeleteChildNamespaces(ctx, log, tenant, deletedChildNamespaces)
+			if err != nil {
+				log.Error(err, "Failed to delete child namespaces")
+				return ctrl.Result{}, err
+			}
+			tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
+			err := r.Status().Update(ctx, tenant)
+			if err != nil {
+				log.Error(err, "Failed to update tenant status")
+				return ctrl.Result{}, err
+			}
+		}
+
 	} else {
 		if controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
 			// Run finalization logic for tenantFinalizer. If the
@@ -189,19 +239,9 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	//
 	// First delete the child namespaces/anchors
 	//
-	for _, childNamespace := range t.Spec.ChildNamespaces {
-		childNs := t.Spec.TenantName + "-" + childNamespace
-		log.Info("Deleted child namespace: " + childNs)
-		anchor := r.subNSAnchorForTenant(t.Spec.TenantName, childNs)
-		err := r.Client.Delete(ctx, anchor)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				log.Info("Child namespace already deleted: " + childNs)
-			} else {
-				log.Error(err, "Failed to delete child namespace: "+childNs)
-				return ctrl.Result{}, err
-			}
-		}
+	result, err := r.DeleteChildNamespaces(ctx, log, t, t.Spec.ChildNamespaces)
+	if err != nil {
+		return result, err
 	}
 
 	//
@@ -209,7 +249,7 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	//
 	log.Info("Deleting parent namespace: " + t.Spec.TenantName)
 	anchor := r.subNSAnchorForTenant("tenants", t.Spec.TenantName)
-	err := r.Client.Delete(ctx, anchor)
+	err = r.Client.Delete(ctx, anchor)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			log.Info("Parent namespace already deleted: " + t.Spec.TenantName)

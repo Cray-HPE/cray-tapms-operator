@@ -69,6 +69,7 @@ type TenantSpec struct {
 type TenantStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	ChildNamespaces []string `json:"childnamespaces,omitempty"`
 }
 
 //+kubebuilder:object:root=true
