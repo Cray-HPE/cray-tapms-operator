@@ -65,21 +65,22 @@ spec:
               tenantname:
                 type: string
               tenantresource:
-                items:
-                  properties:
-                    type:
-                      maxLength: 255
-                      minLength: 1
+                properties:
+                  hsmpartitionname:
+                    type: string
+                  type:
+                    maxLength: 255
+                    minLength: 1
+                    type: string
+                  xnames:
+                    items:
                       type: string
-                    xnames:
-                      items:
-                        type: string
-                      type: array
-                  required:
-                  - type
-                  - xnames
-                  type: object
-                type: array
+                    type: array
+                required:
+                - hsmpartitionname
+                - type
+                - xnames
+                type: object
             required:
             - childnamespaces
             - tenantname
@@ -92,6 +93,12 @@ spec:
                 description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                   of cluster Important: Run "make" to regenerate code after modifying
                   this file'
+                items:
+                  type: string
+                type: array
+              hsmpartitionname:
+                type: string
+              xnames:
                 items:
                   type: string
                 type: array

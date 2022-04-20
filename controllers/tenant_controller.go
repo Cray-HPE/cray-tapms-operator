@@ -90,12 +90,6 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, nil
 		}
 	}
-	_, err = lib.UpdateHSMPartition(ctx, log, tenant, tenant.Spec.TenantResources)
-	if err != nil {
-		log.Error(err, "Failed to update HSM partition")
-		// TODO: return error here
-		//return result, err
-	}
 
 	isTenantMarkedToBeDeleted := tenant.GetDeletionTimestamp() != nil
 	if !isTenantMarkedToBeDeleted {
@@ -118,6 +112,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
+		log.Info("Creating/updating HSM partition for: " + tenant.Spec.TenantName)
+		result, err = lib.UpdateHSMPartition(ctx, log, tenant)
+		if err != nil {
+			log.Error(err, "Failed to create/update HSM partition")
+			return result, err
+		}
+
 		if !reflect.DeepEqual(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces) {
 			log.Info("Updating tenant status")
 			deletedChildNamespaces := lib.Difference(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces)
@@ -127,6 +128,15 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 			tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
+			err := r.Status().Update(ctx, tenant)
+			if err != nil {
+				log.Error(err, "Failed to update tenant status")
+				return ctrl.Result{}, err
+			}
+		}
+
+		if !reflect.DeepEqual(tenant.Status.Xnames, tenant.Spec.TenantResource.Xnames) {
+			tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
 			err := r.Status().Update(ctx, tenant)
 			if err != nil {
 				log.Error(err, "Failed to update tenant status")
@@ -201,6 +211,14 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 			log.Error(err, "Failed to delete parent namespace: "+t.Spec.TenantName)
 			return ctrl.Result{}, err
 		}
+	}
+
+	log.Info("Deleting HSM partition for: " + t.Spec.TenantName)
+	result, err = lib.DeleteHSMPartition(ctx, log, t)
+	if err != nil {
+		log.Error(err, "Failed to delete HSM partition")
+		//	return result, err
+		return ctrl.Result{}, nil
 	}
 
 	return ctrl.Result{}, nil

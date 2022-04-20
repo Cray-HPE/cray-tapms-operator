@@ -40,45 +40,200 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-type hsmIds struct {
+type HsmMemberId struct {
+	Id string
+}
+
+type HsmIds struct {
 	Ids []string
 }
 
-type hsmPartition struct {
+type HsmPartition struct {
 	Name        string
 	Description string
 	Tags        []string
-	Members     hsmIds
+	Members     HsmIds
 }
 
-func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, members []v1alpha1.TenantResource) (ctrl.Result, error) {
+func ListHSMPartitions(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []HsmPartition, error) {
 
+	result, token, err := GetToken(ctx, log)
+	if err != nil {
+		return result, nil, err
+	}
+	//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
+	hsmUrl := "https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions"
+	hsmPartition := HsmPartition{}
+	hsmPartitionBytes, err := json.Marshal(hsmPartition)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+	req, err := http.NewRequest(http.MethodGet, hsmUrl, bytes.NewBuffer(hsmPartitionBytes))
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return ctrl.Result{}, nil, errors.New("HSM returned a non-200 response listing partitions")
+	}
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	var hsmPartitionList []HsmPartition
+	err = json.Unmarshal(body, &hsmPartitionList)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	return ctrl.Result{}, hsmPartitionList, nil
+}
+
+func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+
+	result, partitionList, err := ListHSMPartitions(ctx, log, t)
+	if err != nil {
+		return result, err
+	}
+
+	existingPartition := false
+	for _, partition := range partitionList {
+		if partition.Name == t.Spec.TenantResource.HsmPartitionName {
+			existingPartition = true
+			break
+		}
+	}
+
+	if !existingPartition {
+		//
+		// create the partition
+		//
+		result, err := createHSMPartition(ctx, log, t)
+		if err != nil {
+			return result, err
+		}
+		return ctrl.Result{}, nil
+	} else {
+		//
+		// Check for any changes to update in the partition
+		//
+		log.Info("Updating tenant status")
+		deletedMembers := Difference(t.Status.Xnames, t.Spec.TenantResource.Xnames)
+		result, err := editHsmPartitionMembers(ctx, log, t, deletedMembers, http.MethodDelete)
+		if err != nil {
+			log.Error(err, "Failed to delete HSM partition members")
+			return result, err
+		}
+		addedMembers := Difference(t.Spec.TenantResource.Xnames, t.Status.Xnames)
+		result, err = editHsmPartitionMembers(ctx, log, t, addedMembers, http.MethodPost)
+		if err != nil {
+			log.Error(err, "Failed to add HSM partition members")
+			return result, err
+		}
+	}
+	return ctrl.Result{}, nil
+}
+
+func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, changedMembers []string, httpMethod string) (ctrl.Result, error) {
 	result, token, err := GetToken(ctx, log)
 	if err != nil {
 		return result, err
 	}
-	//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
-	hsmUrl := "https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions"
-	hsmPartition := hsmPartition{}
-	hsmPartition.Name = t.Name
-	for _, member := range members {
-		for _, xname := range member.Xnames {
-			hsmPartition.Members.Ids = append(hsmPartition.Members.Ids, xname)
+
+	for _, member := range changedMembers {
+
+		//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
+		hsmUrl := ""
+		action := ""
+		hsmPartitionBytes := []byte{}
+		if httpMethod == http.MethodPost {
+			hsmUrl = fmt.Sprintf("https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions/%s/members", t.Spec.TenantResource.HsmPartitionName)
+			action = "adding"
+			hsmId := HsmMemberId{}
+			hsmId.Id = member
+			hsmPartitionBytes, err = json.Marshal(hsmId)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		} else if httpMethod == http.MethodDelete {
+			hsmUrl = fmt.Sprintf("https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions/%s/members/%s", t.Spec.TenantResource.HsmPartitionName, member)
+			action = "removing"
+			memberArray := []string{member}
+			result, hsmPartitionBytes, err = buildHsmPayload(log, t, memberArray)
+			if err != nil {
+				return result, err
+			}
 		}
+
+		req, err := http.NewRequest(httpMethod, hsmUrl, bytes.NewBuffer(hsmPartitionBytes))
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		HTTPClient := NewHttpClient()
+		resp, err := HTTPClient.Do(req)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		defer resp.Body.Close()
+
+		if resp.StatusCode < 200 || resp.StatusCode > 299 {
+			return ctrl.Result{}, fmt.Errorf("HSM returned a non-200 response %s member %s for partition %s", action, member, t.Spec.TenantResource.HsmPartitionName)
+		}
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func buildHsmPayload(log logr.Logger, t *v1alpha1.Tenant, xnames []string) (ctrl.Result, []byte, error) {
+
+	hsmPartition := HsmPartition{}
+	hsmPartition.Name = t.Spec.TenantResource.HsmPartitionName
+	hsmPartition.Tags = append(hsmPartition.Tags, t.Name)
+	for _, xname := range xnames {
+		hsmPartition.Members.Ids = append(hsmPartition.Members.Ids, xname)
 	}
 	hsmPartitionBytes, err := json.Marshal(hsmPartition)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil, err
 	}
+	return ctrl.Result{}, hsmPartitionBytes, err
+}
+
+func createHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+	result, token, err := GetToken(ctx, log)
+	if err != nil {
+		return result, err
+	}
+
+	//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
+	hsmUrl := "https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions"
+	result, hsmPartitionBytes, err := buildHsmPayload(log, t, t.Spec.TenantResource.Xnames)
+	if err != nil {
+		return result, err
+	}
+
 	req, err := http.NewRequest(http.MethodPost, hsmUrl, bytes.NewBuffer(hsmPartitionBytes))
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	req.Header.Set("Context-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	fmt.Printf("REQ: %+v\n", req)
 	HTTPClient := NewHttpClient()
 	resp, err := HTTPClient.Do(req)
 	if err != nil {
@@ -87,11 +242,48 @@ func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 
 	defer resp.Body.Close()
 
-	fmt.Printf("RESP: %+v\n", resp)
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("RESP BODY: %+v\n", body)
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		log.Info("Created HSM partition: " + t.Spec.TenantResource.HsmPartitionName)
 		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{}, errors.New("HSM returned a non-200 response")
+	return ctrl.Result{}, errors.New("HSM returned a non-200 response creating partition")
+}
+
+func DeleteHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+
+	result, token, err := GetToken(ctx, log)
+	if err != nil {
+		return result, err
+	}
+
+	//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
+	hsmUrl := fmt.Sprintf("https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions/%s", t.Spec.TenantResource.HsmPartitionName)
+	hsmPartition := HsmPartition{}
+	hsmPartition.Name = t.Spec.TenantResource.HsmPartitionName
+	hsmPartitionBytes, err := json.Marshal(hsmPartition)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, hsmUrl, bytes.NewBuffer(hsmPartitionBytes))
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		log.Info("Deleted HSM partition: " + hsmPartition.Name)
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, errors.New("HSM returned a non-200 response deleting partition")
 }

@@ -51,8 +51,9 @@ import (
 type TenantResource struct {
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:MinLength=1
-	Type   string   `json:"type"`
-	Xnames []string `json:"xnames"`
+	Type             string   `json:"type"`
+	Xnames           []string `json:"xnames"`
+	HsmPartitionName string   `json:"hsmpartitionname"`
 }
 
 // TenantSpec defines the desired state of Tenant
@@ -60,16 +61,18 @@ type TenantSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	TenantName      string           `json:"tenantname"`
-	ChildNamespaces []string         `json:"childnamespaces"`
-	TenantResources []TenantResource `json:"tenantresource"`
+	TenantName      string         `json:"tenantname"`
+	ChildNamespaces []string       `json:"childnamespaces"`
+	TenantResource  TenantResource `json:"tenantresource"`
 }
 
 // TenantStatus defines the observed state of Tenant
 type TenantStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	ChildNamespaces []string `json:"childnamespaces,omitempty"`
+	ChildNamespaces  []string `json:"childnamespaces,omitempty"`
+	HsmPartitionName string   `json:"hsmpartitionname,omitempty"`
+	Xnames           []string `json:"xnames,omitempty"`
 }
 
 //+kubebuilder:object:root=true
