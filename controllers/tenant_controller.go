@@ -109,6 +109,14 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				} else if result.Requeue {
 					return result, nil
 				}
+
+				if childNamespace == "slurm" {
+					result, err = lib.PropagateSecret(ctx, log, "default", childNs, "wlm-s3-credentials")
+					if err != nil {
+						return result, nil
+					}
+
+				}
 			}
 		}
 
@@ -120,17 +128,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 
 		if !reflect.DeepEqual(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces) {
-			log.Info("Updating tenant status")
+			//
+			// Don't need to add members, that gets handled above in the create loop
+			//
 			deletedChildNamespaces := lib.Difference(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces)
 			lib.DeleteChildNamespaces(ctx, log, r.Client, tenant, deletedChildNamespaces)
 			if err != nil {
 				log.Error(err, "Failed to delete child namespaces")
-				return ctrl.Result{}, err
-			}
-			tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
-			err := r.Status().Update(ctx, tenant)
-			if err != nil {
-				log.Error(err, "Failed to update tenant status")
 				return ctrl.Result{}, err
 			}
 		}
@@ -142,6 +146,15 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				log.Error(err, "Failed to update tenant status")
 				return ctrl.Result{}, err
 			}
+		}
+
+		log.Info("Updating tenant status")
+		tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
+		tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
+		err = r.Status().Update(ctx, tenant)
+		if err != nil {
+			log.Error(err, "Failed to update tenant status")
+			return ctrl.Result{}, err
 		}
 
 	} else {

@@ -27,8 +27,18 @@
 package lib
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
+
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 func NewHttpClient() *http.Client {
@@ -54,4 +64,48 @@ func Difference(a, b []string) (diff []string) {
 		}
 	}
 	return
+}
+
+func PropagateSecret(ctx context.Context, log logr.Logger, fromNs string, toNs string, secretName string) (ctrl.Result, error) {
+	log.Info(fmt.Sprintf("Ensuring secret %s exists in %s namespace", secretName, toNs))
+	client, err := client.New(config.GetConfigOrDie(), client.Options{})
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	toSecret := &corev1.Secret{}
+	err = client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: toNs}, toSecret)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if toSecret.Name == secretName {
+		log.Info(fmt.Sprintf("Secret %s already exists in %s namespace", secretName, toNs))
+		return ctrl.Result{}, nil
+	}
+
+	fromSecret := &corev1.Secret{}
+	err = client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: fromNs}, fromSecret)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	newSecret := &corev1.Secret{}
+	newSecret.Namespace = toNs
+	newSecret.Name = fromSecret.Name
+	newSecret.ObjectMeta.Namespace = toNs
+	newSecret.Data = fromSecret.Data
+	newAnnotations := map[string]string{
+		"namespace": toNs,
+		"name":      fromSecret.Name,
+	}
+	newSecret.Annotations = newAnnotations
+
+	err = client.Create(ctx, newSecret)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	log.Info(fmt.Sprintf("Secret %s created in %s namespace", secretName, toNs))
+
+	return ctrl.Result{}, nil
 }

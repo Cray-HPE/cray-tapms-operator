@@ -24,9 +24,15 @@
 apiVersion: tapms.hpe.com/v1alpha1
 kind: Tenant
 metadata:
-  name: test-tenant
+  name: tenant-dev
 spec:
- tenantresource:
-   - type: 'compute'
-     filter: '*'
-     percent: 10
+  childnamespaces:
+    - slurm
+    - user
+  tenantname: tenant-dev
+  tenantresource:
+    hsmpartitionname: p1
+    type: compute
+    xnames:
+      - x0c3s5b0n0
+      - x0c3s6b0n0
