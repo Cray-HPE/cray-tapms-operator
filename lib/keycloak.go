@@ -46,7 +46,7 @@ import (
 )
 
 func GetToken(ctx context.Context, log logr.Logger) (ctrl.Result, string, error) {
-	keycloakUrl := "https://api-gateway.vshasta.io/keycloak/realms/shasta/protocol/openid-connect/token"
+	keycloakUrl := fmt.Sprintf("https://%s/keycloak/realms/shasta/protocol/openid-connect/token", GetApiGateway())
 
 	res, data, err := getTokenUrlValues(ctx)
 	if err != nil {

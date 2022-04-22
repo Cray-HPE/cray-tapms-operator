@@ -31,6 +31,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +42,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
+var apiGateway = getEnvVal("API_GATEWAY", "api-gw-service-nmn.local")
+
 func NewHttpClient() *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{
@@ -49,6 +52,10 @@ func NewHttpClient() *http.Client {
 	httpClient := &http.Client{Transport: transport}
 
 	return httpClient
+}
+
+func GetApiGateway() string {
+	return apiGateway
 }
 
 func Difference(a, b []string) (diff []string) {
@@ -108,4 +115,11 @@ func PropagateSecret(ctx context.Context, log logr.Logger, fromNs string, toNs s
 	log.Info(fmt.Sprintf("Secret %s created in %s namespace", secretName, toNs))
 
 	return ctrl.Result{}, nil
+}
+
+func getEnvVal(envVar, defVal string) string {
+	if e, ok := os.LookupEnv(envVar); ok {
+		return e
+	}
+	return defVal
 }

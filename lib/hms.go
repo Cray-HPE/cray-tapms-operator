@@ -61,8 +61,7 @@ func ListHSMPartitions(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant)
 	if err != nil {
 		return result, nil, err
 	}
-	//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
-	hsmUrl := "https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions"
+	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions", GetApiGateway())
 	hsmPartition := HsmPartition{}
 	hsmPartitionBytes, err := json.Marshal(hsmPartition)
 	if err != nil {
@@ -151,12 +150,11 @@ func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.T
 
 	for _, member := range changedMembers {
 
-		//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
 		hsmUrl := ""
 		action := ""
 		hsmPartitionBytes := []byte{}
 		if httpMethod == http.MethodPost {
-			hsmUrl = fmt.Sprintf("https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions/%s/members", t.Spec.TenantResource.HsmPartitionName)
+			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s/members", GetApiGateway(), t.Spec.TenantResource.HsmPartitionName)
 			action = "adding"
 			hsmId := HsmMemberId{}
 			hsmId.Id = member
@@ -165,7 +163,7 @@ func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.T
 				return ctrl.Result{}, err
 			}
 		} else if httpMethod == http.MethodDelete {
-			hsmUrl = fmt.Sprintf("https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions/%s/members/%s", t.Spec.TenantResource.HsmPartitionName, member)
+			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s/members/%s", GetApiGateway(), t.Spec.TenantResource.HsmPartitionName, member)
 			action = "removing"
 			memberArray := []string{member}
 			result, hsmPartitionBytes, err = buildHsmPayload(log, t, memberArray)
@@ -219,8 +217,7 @@ func createHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 		return result, err
 	}
 
-	//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
-	hsmUrl := "https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions"
+	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions", GetApiGateway())
 	result, hsmPartitionBytes, err := buildHsmPayload(log, t, t.Spec.TenantResource.Xnames)
 	if err != nil {
 		return result, err
@@ -256,8 +253,7 @@ func DeleteHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 		return result, err
 	}
 
-	//hsmUrl := "https://api-gw-service-nmn.local/apis/smd/hsm/v2/partitions"
-	hsmUrl := fmt.Sprintf("https://api-gateway.vshasta.io/apis/smd/hsm/v2/partitions/%s", t.Spec.TenantResource.HsmPartitionName)
+	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s", GetApiGateway(), t.Spec.TenantResource.HsmPartitionName)
 	hsmPartition := HsmPartition{}
 	hsmPartition.Name = t.Spec.TenantResource.HsmPartitionName
 	hsmPartitionBytes, err := json.Marshal(hsmPartition)
