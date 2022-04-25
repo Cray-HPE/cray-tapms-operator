@@ -26,3 +26,4 @@ image:
   tag: v0.0.1
   pullPolicy: IfNotPresent
 numReplicas: 1
+apiGateway: api-gw-service-nmn.local

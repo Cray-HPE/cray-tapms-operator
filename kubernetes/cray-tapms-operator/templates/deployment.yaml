@@ -61,6 +61,9 @@ spec:
         - tenants
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: API_GATEWAY
+          value: "{{ .Values.apiGateway }}"
         name: cray-tapms-operator
         resources:
           limits:
