@@ -127,6 +127,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return result, err
 		}
 
+		log.Info("Creating/updating Keycloak Group for: " + tenant.Spec.TenantName)
+		result, err = lib.UpdateKeycloakGroup(ctx, log, tenant)
+		if err != nil {
+			log.Error(err, "Failed to create/update Keycloak Group")
+			return result, err
+		}
+
 		if !reflect.DeepEqual(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces) {
 			//
 			// Don't need to add members, that gets handled above in the create loop
@@ -150,7 +157,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		log.Info("Updating tenant status")
 		tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
-		tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
+		//	tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
 		err = r.Status().Update(ctx, tenant)
 		if err != nil {
 			log.Error(err, "Failed to update tenant status")
@@ -230,8 +237,14 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	result, err = lib.DeleteHSMPartition(ctx, log, t)
 	if err != nil {
 		log.Error(err, "Failed to delete HSM partition")
-		//	return result, err
-		return ctrl.Result{}, nil
+		return result, err
+	}
+
+	log.Info("Deleting Keycloak group for: " + t.Spec.TenantName)
+	result, err = lib.DeleteKeycloakGroup(ctx, log, t)
+	if err != nil {
+		log.Error(err, "Failed to delete Keycloak group")
+		return result, err
 	}
 
 	return ctrl.Result{}, nil

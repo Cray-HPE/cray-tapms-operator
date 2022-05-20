@@ -27,10 +27,13 @@
 package lib
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -41,14 +44,175 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 )
 
-func GetToken(ctx context.Context, log logr.Logger) (ctrl.Result, string, error) {
-	keycloakUrl := fmt.Sprintf("https://%s/keycloak/realms/shasta/protocol/openid-connect/token", GetApiGateway())
+type KeycloakGroup struct {
+	Name string `json:"name,omitempty"`
+	Path string `json:"path,omitempty"`
+	Id   string `json:"id,omitempty"`
+}
 
-	res, data, err := getTokenUrlValues(ctx)
+func listKeycloakGroups(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []KeycloakGroup, error) {
+
+	result, token, err := GetToken(ctx, log, true)
+	if err != nil {
+		return result, nil, err
+	}
+
+	keycloakUrl := fmt.Sprintf("%s/admin/realms/shasta/groups", getKeycloakBase())
+
+	result, keycloakGroupBytes, err := buildKeycloakGroupPayload(log, t)
+	if err != nil {
+		return result, nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, keycloakUrl, bytes.NewBuffer(keycloakGroupBytes))
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Info("Created Keycloak group: " + getKeycloakGroupName(t.Spec.TenantName))
+		return ctrl.Result{}, nil, errors.New("keycloak returned a non-200 response listing groups")
+	}
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	var keycloakGroupList []KeycloakGroup
+	err = json.Unmarshal(body, &keycloakGroupList)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	return ctrl.Result{}, keycloakGroupList, nil
+
+}
+
+func UpdateKeycloakGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+
+	result, groupList, err := listKeycloakGroups(ctx, log, t)
+	if err != nil {
+		return result, err
+	}
+
+	for _, group := range groupList {
+		if group.Name == getKeycloakGroupName(t.Spec.TenantName) {
+			log.Info("Keycloak group already exists: " + getKeycloakGroupName(t.Spec.TenantName))
+			return ctrl.Result{}, nil
+		}
+	}
+
+	result, token, err := GetToken(ctx, log, true)
+	if err != nil {
+		return result, err
+	}
+	keycloakUrl := fmt.Sprintf("%s/admin/realms/shasta/groups", getKeycloakBase())
+
+	result, keycloakGroupBytes, err := buildKeycloakGroupPayload(log, t)
+	if err != nil {
+		return result, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, keycloakUrl, bytes.NewBuffer(keycloakGroupBytes))
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		log.Info("Created Keycloak group: " + getKeycloakGroupName(t.Spec.TenantName))
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, errors.New("keycloak returned a non-200 response creating/updating group")
+}
+
+func DeleteKeycloakGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+
+	result, groupList, err := listKeycloakGroups(ctx, log, t)
+	if err != nil {
+		return result, err
+	}
+
+	var groupId string
+	for _, group := range groupList {
+		if group.Name == getKeycloakGroupName(t.Spec.TenantName) {
+			groupId = group.Id
+			break
+		}
+	}
+
+	if len(groupId) <= 0 {
+		log.Info("Keycloak group already deleted: " + getKeycloakGroupName(t.Spec.TenantName))
+	}
+
+	result, token, err := GetToken(ctx, log, true)
+	if err != nil {
+		return result, err
+	}
+
+	keycloakUrl := fmt.Sprintf("%s/admin/realms/shasta/groups/%s", getKeycloakBase(), groupId)
+
+	req, err := http.NewRequest(http.MethodDelete, keycloakUrl, nil)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		log.Info("Deleted Keycloak group: " + getKeycloakGroupName(t.Spec.TenantName))
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, errors.New("Keycloak returned a non-200 response deleting partition")
+}
+
+func GetToken(ctx context.Context, log logr.Logger, masterAuth bool) (ctrl.Result, string, error) {
+
+	var data url.Values
+	var keycloakUrl string
+	var res reconcile.Result
+	var err error
+	if masterAuth {
+		keycloakUrl = fmt.Sprintf("%s/realms/master/protocol/openid-connect/token", getKeycloakBase())
+		res, data, err = getMasterTokenUrlValues(ctx)
+
+	} else {
+		keycloakUrl = fmt.Sprintf("%s/realms/shasta/protocol/openid-connect/token", getClusterKeycloakBase())
+		res, data, err = getTokenUrlValues(ctx)
+	}
 	if err != nil {
 		return res, "", err
 	}
@@ -74,6 +238,53 @@ func GetToken(ctx context.Context, log logr.Logger) (ctrl.Result, string, error)
 	var result map[string]string
 	json.NewDecoder(resp.Body).Decode(&result)
 	return ctrl.Result{}, result["access_token"], nil
+}
+
+func buildKeycloakGroupPayload(log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []byte, error) {
+
+	keycloakGroup := KeycloakGroup{}
+	keycloakGroup.Name = getKeycloakGroupName(t.Spec.TenantName)
+	keycloakGroup.Path = "/" + keycloakGroup.Name
+	keycloakGroupBytes, err := json.Marshal(keycloakGroup)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+	return ctrl.Result{}, keycloakGroupBytes, err
+}
+
+func getMasterTokenUrlValues(ctx context.Context) (ctrl.Result, url.Values, error) {
+	client, err := client.New(config.GetConfigOrDie(), client.Options{})
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	foundSecret := &corev1.Secret{}
+	err = client.Get(ctx, types.NamespacedName{Name: "keycloak-master-admin-auth", Namespace: "services"}, foundSecret)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	result, clientId, err := decodeSecretValue(foundSecret.Data, "client-id")
+	if err != nil {
+		return result, nil, err
+	}
+
+	result, username, err := decodeSecretValue(foundSecret.Data, "user")
+	if err != nil {
+		return result, nil, err
+	}
+
+	result, password, err := decodeSecretValue(foundSecret.Data, "password")
+	if err != nil {
+		return result, nil, err
+	}
+
+	data := url.Values{}
+	data.Set("client_id", clientId)
+	data.Set("grant_type", "password")
+	data.Set("username", username)
+	data.Set("password", password)
+	return ctrl.Result{}, data, nil
 }
 
 func getTokenUrlValues(ctx context.Context) (ctrl.Result, url.Values, error) {
@@ -111,4 +322,16 @@ func decodeSecretValue(data map[string][]byte, key string) (ctrl.Result, string,
 		return ctrl.Result{}, "", err
 	}
 	return ctrl.Result{}, string(decStr), nil
+}
+
+func getKeycloakGroupName(tenantName string) string {
+	return tenantName + "-tenant-admin"
+}
+
+func getKeycloakBase() string {
+	return "http://keycloak.services:8080/keycloak"
+}
+
+func getClusterKeycloakBase() string {
+	return fmt.Sprintf("https://%s/keycloak", GetApiGateway())
 }
