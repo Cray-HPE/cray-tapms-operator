@@ -57,7 +57,7 @@ type HsmPartition struct {
 
 func ListHSMPartitions(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []HsmPartition, error) {
 
-	result, token, err := GetToken(ctx, log)
+	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, nil, err
 	}
@@ -143,7 +143,7 @@ func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 }
 
 func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, changedMembers []string, httpMethod string) (ctrl.Result, error) {
-	result, token, err := GetToken(ctx, log)
+	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
 	}
@@ -212,7 +212,7 @@ func buildHsmPayload(log logr.Logger, t *v1alpha1.Tenant, xnames []string) (ctrl
 }
 
 func createHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
-	result, token, err := GetToken(ctx, log)
+	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
 	}
@@ -248,7 +248,25 @@ func createHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 
 func DeleteHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
 
-	result, token, err := GetToken(ctx, log)
+	result, partitionList, err := ListHSMPartitions(ctx, log, t)
+	if err != nil {
+		return result, err
+	}
+
+	foundPartition := false
+	for _, partition := range partitionList {
+		if partition.Name == t.Spec.TenantResource.HsmPartitionName {
+			foundPartition = true
+			break
+		}
+	}
+
+	if !foundPartition {
+		log.Info("HSM partition already deleted: " + t.Spec.TenantResource.HsmPartitionName)
+		return ctrl.Result{}, nil
+	}
+
+	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
 	}
