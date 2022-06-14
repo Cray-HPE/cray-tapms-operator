@@ -43,6 +43,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -93,6 +94,18 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	isTenantMarkedToBeDeleted := tenant.GetDeletionTimestamp() != nil
 	if !isTenantMarkedToBeDeleted {
+		if lib.TenantIsUpdated(tenant) {
+			if tenant.Status.State != "Deploying" {
+				tenant.Status.State = "Deploying"
+				err = r.Status().Update(ctx, tenant)
+				if err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
+				} else {
+					return ctrl.Result{}, nil
+				}
+			}
+		}
+
 		result, err := lib.CreateSubanchorNs(ctx, log, r.Client, "tenants", tenant.Spec.TenantName)
 
 		if err != nil {
@@ -115,7 +128,6 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 					if err != nil {
 						return result, nil
 					}
-
 				}
 			}
 		}
@@ -146,25 +158,27 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
-		if !reflect.DeepEqual(tenant.Status.Xnames, tenant.Spec.TenantResource.Xnames) {
+		if lib.TenantIsUpdated(tenant) {
+			log.Info("Updating tenant status")
 			tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
-			err := r.Status().Update(ctx, tenant)
+			tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
+			tenant.Status.HsmPartitionName = tenant.Spec.TenantResource.HsmPartitionName
+			tenant.Status.State = "Deployed"
+			err = r.Status().Update(ctx, tenant)
 			if err != nil {
-				log.Error(err, "Failed to update tenant status")
+				log.Error(err, "Failed to update final tenant status")
 				return ctrl.Result{}, err
 			}
 		}
 
-		log.Info("Updating tenant status")
-		tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
-		//	tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
-		err = r.Status().Update(ctx, tenant)
-		if err != nil {
-			log.Error(err, "Failed to update tenant status")
-			return ctrl.Result{}, err
-		}
-
 	} else {
+		if tenant.Status.State != "Deleting" {
+			tenant.Status.State = "Deleting"
+			err = r.Status().Update(ctx, tenant)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
+			}
+		}
 		if controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
 			// Run finalization logic for tenantFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
@@ -181,6 +195,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			controllerutil.RemoveFinalizer(tenant, tenantFinalizer)
 			err = r.Update(ctx, tenant)
 			if err != nil {
+				log.Error(err, "Failed to remove finalizer")
 				return ctrl.Result{}, err
 			}
 		}

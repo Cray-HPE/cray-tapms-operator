@@ -32,7 +32,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 
+	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -122,4 +124,18 @@ func getEnvVal(envVar, defVal string) string {
 		return e
 	}
 	return defVal
+}
+
+func TenantIsUpdated(tenant *v1alpha1.Tenant) bool {
+	var isUpdated = false
+	if !reflect.DeepEqual(tenant.Status.Xnames, tenant.Spec.TenantResource.Xnames) {
+		isUpdated = true
+	}
+	if !reflect.DeepEqual(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces) {
+		isUpdated = true
+	}
+	if tenant.Status.HsmPartitionName != tenant.Spec.TenantResource.HsmPartitionName {
+		isUpdated = true
+	}
+	return isUpdated
 }
