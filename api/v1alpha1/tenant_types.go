@@ -70,6 +70,7 @@ type TenantSpec struct {
 type TenantStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	State            string   `json:"state,omitempty"`
 	ChildNamespaces  []string `json:"childnamespaces,omitempty"`
 	HsmPartitionName string   `json:"hsmpartitionname,omitempty"`
 	Xnames           []string `json:"xnames,omitempty"`
