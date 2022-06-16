@@ -132,11 +132,22 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
-		log.Info("Creating/updating HSM partition for: " + tenant.Spec.TenantName)
-		result, err = lib.UpdateHSMPartition(ctx, log, tenant)
-		if err != nil {
-			log.Error(err, "Failed to create/update HSM partition")
-			return result, err
+		if len(tenant.Spec.TenantResource.HsmPartitionName) > 0 {
+			log.Info("Creating/updating HSM partition for: " + tenant.Spec.TenantName)
+			result, err = lib.UpdateHSMPartition(ctx, log, tenant)
+			if err != nil {
+				log.Error(err, "Failed to create/update HSM partition")
+				return result, err
+			}
+		}
+
+		if len(tenant.Spec.TenantResource.HsmGroupLabel) > 0 {
+			log.Info("Creating/updating HSM group for: " + tenant.Spec.TenantName)
+			result, err = lib.UpdateHSMGroup(ctx, log, tenant)
+			if err != nil {
+				log.Error(err, "Failed to create/update HSM group")
+				return result, err
+			}
 		}
 
 		log.Info("Creating/updating Keycloak Group for: " + tenant.Spec.TenantName)
@@ -163,6 +174,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
 			tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
 			tenant.Status.HsmPartitionName = tenant.Spec.TenantResource.HsmPartitionName
+			tenant.Status.HsmGroupLabel = tenant.Spec.TenantResource.HsmGroupLabel
 			tenant.Status.State = "Deployed"
 			err = r.Status().Update(ctx, tenant)
 			if err != nil {
@@ -248,11 +260,22 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 		}
 	}
 
-	log.Info("Deleting HSM partition for: " + t.Spec.TenantName)
-	result, err = lib.DeleteHSMPartition(ctx, log, t)
-	if err != nil {
-		log.Error(err, "Failed to delete HSM partition")
-		return result, err
+	if len(t.Spec.TenantResource.HsmPartitionName) > 0 {
+		log.Info("Deleting HSM partition for: " + t.Spec.TenantName)
+		result, err = lib.DeleteHSMPartition(ctx, log, t)
+		if err != nil {
+			log.Error(err, "Failed to delete HSM partition")
+			return result, err
+		}
+	}
+
+	if len(t.Spec.TenantResource.HsmGroupLabel) > 0 {
+		log.Info("Deleting HSM group for: " + t.Spec.TenantName)
+		result, err = lib.DeleteHSMGroup(ctx, log, t)
+		if err != nil {
+			log.Error(err, "Failed to delete HSM group")
+			return result, err
+		}
 	}
 
 	log.Info("Deleting Keycloak group for: " + t.Spec.TenantName)

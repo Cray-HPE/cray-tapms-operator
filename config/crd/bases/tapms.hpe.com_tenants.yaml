@@ -68,6 +68,8 @@ spec:
                 properties:
                   hsmpartitionname:
                     type: string
+                  hsmgrouplabel:
+                    type: string
                   type:
                     maxLength: 255
                     minLength: 1
@@ -77,7 +79,7 @@ spec:
                       type: string
                     type: array
                 required:
-                - hsmpartitionname
+                - hsmgrouplabel
                 - type
                 - xnames
                 type: object
@@ -95,10 +97,9 @@ spec:
                 type: array
               hsmpartitionname:
                 type: string
+              hsmgrouplabel:
+                type: string
               state:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
                 type: string
               xnames:
                 items:
