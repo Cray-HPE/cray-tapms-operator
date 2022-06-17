@@ -54,6 +54,7 @@ type TenantResource struct {
 	Type             string   `json:"type"`
 	Xnames           []string `json:"xnames"`
 	HsmPartitionName string   `json:"hsmpartitionname"`
+	HsmGroupLabel    string   `json:"hsmgrouplabel,omitempty"`
 }
 
 // TenantSpec defines the desired state of Tenant
@@ -73,6 +74,7 @@ type TenantStatus struct {
 	State            string   `json:"state,omitempty"`
 	ChildNamespaces  []string `json:"childnamespaces,omitempty"`
 	HsmPartitionName string   `json:"hsmpartitionname,omitempty"`
+	HsmGroupLabel    string   `json:"hsmgrouplabel,omitempty"`
 	Xnames           []string `json:"xnames,omitempty"`
 }
 
