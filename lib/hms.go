@@ -62,7 +62,7 @@ type HsmGroup struct {
 	Members     HsmIds
 }
 
-func ListHSMGroups(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []HsmGroup, error) {
+func ListHSMGroups(ctx context.Context, log logr.Logger) (ctrl.Result, []HsmGroup, error) {
 
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
@@ -104,7 +104,7 @@ func ListHSMGroups(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ct
 	return ctrl.Result{}, hsmGroupList, nil
 }
 
-func ListHSMPartitions(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []HsmPartition, error) {
+func ListHSMPartitions(ctx context.Context, log logr.Logger) (ctrl.Result, []HsmPartition, error) {
 
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
@@ -146,16 +146,16 @@ func ListHSMPartitions(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant)
 	return ctrl.Result{}, hsmPartitionList, nil
 }
 
-func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hsmGroupLabel string, xnames []string) (ctrl.Result, error) {
 
-	result, groupList, err := ListHSMGroups(ctx, log, t)
+	result, groupList, err := ListHSMGroups(ctx, log)
 	if err != nil {
 		return result, err
 	}
 
 	existingGroup := false
 	for _, group := range groupList {
-		if group.Label == t.Spec.TenantResource.HsmGroupLabel {
+		if group.Label == hsmGroupLabel {
 			existingGroup = true
 			break
 		}
@@ -165,7 +165,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (c
 		//
 		// create the group
 		//
-		result, err := createHSMGroup(ctx, log, t)
+		result, err := createHSMGroup(ctx, log, t.Name, hsmGroupLabel, xnames)
 		if err != nil {
 			return result, err
 		}
@@ -174,33 +174,46 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (c
 		//
 		// Check for any changes to update in the group
 		//
-		log.Info("Updating HSM group")
-		deletedMembers := Difference(t.Status.Xnames, t.Spec.TenantResource.Xnames)
-		result, err := editHsmGroupMembers(ctx, log, t, deletedMembers, http.MethodDelete)
-		if err != nil {
-			log.Error(err, "Failed to delete HSM group members")
-			return result, err
+		for _, specResource := range t.Spec.TenantResources {
+			for _, statResource := range t.Status.TenantResources {
+				if (statResource.Type == specResource.Type) && (specResource.HsmGroupLabel == hsmGroupLabel) {
+					log.Info(fmt.Sprintf("Checking for members deleted from HSM group %s", hsmGroupLabel))
+					deletedMembers := Difference(statResource.Xnames, specResource.Xnames)
+					result, err := editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, deletedMembers, http.MethodDelete)
+					if err != nil {
+						log.Error(err, "Failed to delete HSM group members")
+						return result, err
+					}
+				}
+			}
 		}
-		addedMembers := Difference(t.Spec.TenantResource.Xnames, t.Status.Xnames)
-		result, err = editHsmGroupMembers(ctx, log, t, addedMembers, http.MethodPost)
-		if err != nil {
-			log.Error(err, "Failed to add HSM group members")
-			return result, err
+		for _, specResource := range t.Spec.TenantResources {
+			for _, statResource := range t.Status.TenantResources {
+				if (statResource.Type == specResource.Type) && (specResource.HsmGroupLabel == hsmGroupLabel) {
+					log.Info(fmt.Sprintf("Checking for members added to HSM group %s", hsmGroupLabel))
+					addedMembers := Difference(specResource.Xnames, statResource.Xnames)
+					result, err = editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, addedMembers, http.MethodPost)
+					if err != nil {
+						log.Error(err, "Failed to add HSM group members")
+						return result, err
+					}
+				}
+			}
 		}
 	}
 	return ctrl.Result{}, nil
 }
 
-func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hsmPartitionName string, xnames []string) (ctrl.Result, error) {
 
-	result, partitionList, err := ListHSMPartitions(ctx, log, t)
+	result, partitionList, err := ListHSMPartitions(ctx, log)
 	if err != nil {
 		return result, err
 	}
 
 	existingPartition := false
 	for _, partition := range partitionList {
-		if partition.Name == t.Spec.TenantResource.HsmPartitionName {
+		if partition.Name == hsmPartitionName {
 			existingPartition = true
 			break
 		}
@@ -210,7 +223,7 @@ func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 		//
 		// create the partition
 		//
-		result, err := createHSMPartition(ctx, log, t)
+		result, err := createHSMPartition(ctx, log, t.Name, hsmPartitionName, xnames)
 		if err != nil {
 			return result, err
 		}
@@ -219,24 +232,37 @@ func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 		//
 		// Check for any changes to update in the partition
 		//
-		log.Info("Updating HSM partition")
-		deletedMembers := Difference(t.Status.Xnames, t.Spec.TenantResource.Xnames)
-		result, err := editHsmPartitionMembers(ctx, log, t, deletedMembers, http.MethodDelete)
-		if err != nil {
-			log.Error(err, "Failed to delete HSM partition members")
-			return result, err
+		for _, specResource := range t.Spec.TenantResources {
+			for _, statResource := range t.Status.TenantResources {
+				if (statResource.Type == specResource.Type) && (specResource.HsmPartitionName == hsmPartitionName) {
+					log.Info(fmt.Sprintf("Checking for members deleted from HSM partition %s", specResource.HsmPartitionName))
+					deletedMembers := Difference(statResource.Xnames, specResource.Xnames)
+					result, err := editHsmPartitionMembers(ctx, log, t.Name, hsmPartitionName, deletedMembers, http.MethodDelete)
+					if err != nil {
+						log.Error(err, "Failed to delete HSM partition members")
+						return result, err
+					}
+				}
+			}
 		}
-		addedMembers := Difference(t.Spec.TenantResource.Xnames, t.Status.Xnames)
-		result, err = editHsmPartitionMembers(ctx, log, t, addedMembers, http.MethodPost)
-		if err != nil {
-			log.Error(err, "Failed to add HSM partition members")
-			return result, err
+		for _, specResource := range t.Spec.TenantResources {
+			for _, statResource := range t.Status.TenantResources {
+				if (statResource.Type == specResource.Type) && (specResource.HsmPartitionName == hsmPartitionName) {
+					log.Info(fmt.Sprintf("Checking for members added to HSM partition %s", specResource.HsmPartitionName))
+					addedMembers := Difference(specResource.Xnames, statResource.Xnames)
+					result, err = editHsmPartitionMembers(ctx, log, t.Name, hsmPartitionName, addedMembers, http.MethodPost)
+					if err != nil {
+						log.Error(err, "Failed to add HSM partition members")
+						return result, err
+					}
+				}
+			}
 		}
 	}
 	return ctrl.Result{}, nil
 }
 
-func editHsmGroupMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, changedMembers []string, httpMethod string) (ctrl.Result, error) {
+func editHsmGroupMembers(ctx context.Context, log logr.Logger, tenantName string, hsmGroupLabel string, changedMembers []string, httpMethod string) (ctrl.Result, error) {
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
@@ -248,7 +274,7 @@ func editHsmGroupMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenan
 		action := ""
 		hsmGroupBytes := []byte{}
 		if httpMethod == http.MethodPost {
-			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups/%s/members", GetApiGateway(), t.Spec.TenantResource.HsmGroupLabel)
+			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups/%s/members", GetApiGateway(), hsmGroupLabel)
 			action = "adding"
 			hsmId := HsmMemberId{}
 			hsmId.Id = member
@@ -257,10 +283,10 @@ func editHsmGroupMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenan
 				return ctrl.Result{}, err
 			}
 		} else if httpMethod == http.MethodDelete {
-			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups/%s/members/%s", GetApiGateway(), t.Spec.TenantResource.HsmGroupLabel, member)
+			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups/%s/members/%s", GetApiGateway(), hsmGroupLabel, member)
 			action = "removing"
 			memberArray := []string{member}
-			result, hsmGroupBytes, err = buildHsmGroupPayload(log, t, memberArray)
+			result, hsmGroupBytes, err = buildHsmGroupPayload(log, tenantName, hsmGroupLabel, memberArray)
 			if err != nil {
 				return result, err
 			}
@@ -284,9 +310,9 @@ func editHsmGroupMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenan
 
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
 			if resp.StatusCode == 404 {
-				log.Info(fmt.Sprintf("HSM member %s already deleted from group %s", member, t.Spec.TenantResource.HsmGroupLabel))
+				log.Info(fmt.Sprintf("HSM member %s already deleted from group %s", member, hsmGroupLabel))
 			} else {
-				return ctrl.Result{}, fmt.Errorf("HSM returned a non-200 response %s member %s for group %s", action, member, t.Spec.TenantResource.HsmGroupLabel)
+				return ctrl.Result{}, fmt.Errorf("HSM returned a non-200 response %s member %s for group %s", action, member, hsmGroupLabel)
 			}
 		}
 	}
@@ -294,7 +320,7 @@ func editHsmGroupMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenan
 	return ctrl.Result{}, nil
 }
 
-func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, changedMembers []string, httpMethod string) (ctrl.Result, error) {
+func editHsmPartitionMembers(ctx context.Context, log logr.Logger, tenantName string, hsmPartitionName string, changedMembers []string, httpMethod string) (ctrl.Result, error) {
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
@@ -306,7 +332,7 @@ func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.T
 		action := ""
 		hsmPartitionBytes := []byte{}
 		if httpMethod == http.MethodPost {
-			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s/members", GetApiGateway(), t.Spec.TenantResource.HsmPartitionName)
+			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s/members", GetApiGateway(), hsmPartitionName)
 			action = "adding"
 			hsmId := HsmMemberId{}
 			hsmId.Id = member
@@ -315,10 +341,10 @@ func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.T
 				return ctrl.Result{}, err
 			}
 		} else if httpMethod == http.MethodDelete {
-			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s/members/%s", GetApiGateway(), t.Spec.TenantResource.HsmPartitionName, member)
+			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s/members/%s", GetApiGateway(), hsmPartitionName, member)
 			action = "removing"
 			memberArray := []string{member}
-			result, hsmPartitionBytes, err = buildHsmPartitionPayload(log, t, memberArray)
+			result, hsmPartitionBytes, err = buildHsmPartitionPayload(log, tenantName, hsmPartitionName, memberArray)
 			if err != nil {
 				return result, err
 			}
@@ -342,9 +368,9 @@ func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.T
 
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
 			if resp.StatusCode == 404 {
-				log.Info(fmt.Sprintf("HSM member %s already deleted from partition %s", member, t.Spec.TenantResource.HsmPartitionName))
+				log.Info(fmt.Sprintf("HSM member %s already deleted from partition %s", member, hsmPartitionName))
 			} else {
-				return ctrl.Result{}, fmt.Errorf("HSM returned a non-200 response %s member %s for partition %s", action, member, t.Spec.TenantResource.HsmPartitionName)
+				return ctrl.Result{}, fmt.Errorf("HSM returned a non-200 response %s member %s for partition %s", action, member, hsmPartitionName)
 			}
 		}
 	}
@@ -352,11 +378,11 @@ func editHsmPartitionMembers(ctx context.Context, log logr.Logger, t *v1alpha1.T
 	return ctrl.Result{}, nil
 }
 
-func buildHsmPartitionPayload(log logr.Logger, t *v1alpha1.Tenant, xnames []string) (ctrl.Result, []byte, error) {
+func buildHsmPartitionPayload(log logr.Logger, tenantName string, hsmPartitionName string, xnames []string) (ctrl.Result, []byte, error) {
 
 	hsmPartition := HsmPartition{}
-	hsmPartition.Name = t.Spec.TenantResource.HsmPartitionName
-	hsmPartition.Tags = append(hsmPartition.Tags, t.Name)
+	hsmPartition.Name = hsmPartitionName
+	hsmPartition.Tags = append(hsmPartition.Tags, tenantName)
 	for _, xname := range xnames {
 		hsmPartition.Members.Ids = append(hsmPartition.Members.Ids, xname)
 	}
@@ -367,11 +393,11 @@ func buildHsmPartitionPayload(log logr.Logger, t *v1alpha1.Tenant, xnames []stri
 	return ctrl.Result{}, hsmPartitionBytes, err
 }
 
-func buildHsmGroupPayload(log logr.Logger, t *v1alpha1.Tenant, xnames []string) (ctrl.Result, []byte, error) {
+func buildHsmGroupPayload(log logr.Logger, tenantName string, hsmGroupLabel string, xnames []string) (ctrl.Result, []byte, error) {
 
 	hsmGroup := HsmGroup{}
-	hsmGroup.Label = t.Spec.TenantResource.HsmGroupLabel
-	hsmGroup.Tags = append(hsmGroup.Tags, t.Name)
+	hsmGroup.Label = hsmGroupLabel
+	hsmGroup.Tags = append(hsmGroup.Tags, tenantName)
 	for _, xname := range xnames {
 		hsmGroup.Members.Ids = append(hsmGroup.Members.Ids, xname)
 	}
@@ -382,14 +408,14 @@ func buildHsmGroupPayload(log logr.Logger, t *v1alpha1.Tenant, xnames []string) 
 	return ctrl.Result{}, hsmGroupBytes, err
 }
 
-func createHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func createHSMGroup(ctx context.Context, log logr.Logger, tenantName string, hsmGroupLabel string, xnames []string) (ctrl.Result, error) {
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
 	}
 
 	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups", GetApiGateway())
-	result, hsmGroupBytes, err := buildHsmGroupPayload(log, t, t.Spec.TenantResource.Xnames)
+	result, hsmGroupBytes, err := buildHsmGroupPayload(log, tenantName, hsmGroupLabel, xnames)
 	if err != nil {
 		return result, err
 	}
@@ -411,20 +437,20 @@ func createHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (c
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		log.Info("Created HSM group: " + t.Spec.TenantResource.HsmGroupLabel)
+		log.Info("Created HSM group: " + hsmGroupLabel)
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, errors.New("HSM returned a non-200 response creating group")
 }
 
-func createHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func createHSMPartition(ctx context.Context, log logr.Logger, tenantName string, hsmPartitionName string, xnames []string) (ctrl.Result, error) {
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
 	}
 
 	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions", GetApiGateway())
-	result, hsmPartitionBytes, err := buildHsmPartitionPayload(log, t, t.Spec.TenantResource.Xnames)
+	result, hsmPartitionBytes, err := buildHsmPartitionPayload(log, tenantName, hsmPartitionName, xnames)
 	if err != nil {
 		return result, err
 	}
@@ -446,29 +472,29 @@ func createHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		log.Info("Created HSM partition: " + t.Spec.TenantResource.HsmPartitionName)
+		log.Info("Created HSM partition: " + hsmPartitionName)
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, errors.New("HSM returned a non-200 response creating partition")
 }
 
-func DeleteHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func DeleteHSMGroup(ctx context.Context, log logr.Logger, hsmGroupLabel string) (ctrl.Result, error) {
 
-	result, groupList, err := ListHSMGroups(ctx, log, t)
+	result, groupList, err := ListHSMGroups(ctx, log)
 	if err != nil {
 		return result, err
 	}
 
 	foundGroup := false
 	for _, group := range groupList {
-		if group.Label == t.Spec.TenantResource.HsmGroupLabel {
+		if group.Label == hsmGroupLabel {
 			foundGroup = true
 			break
 		}
 	}
 
 	if !foundGroup {
-		log.Info("HSM group already deleted: " + t.Spec.TenantResource.HsmPartitionName)
+		log.Info("HSM group already deleted: " + hsmGroupLabel)
 		return ctrl.Result{}, nil
 	}
 
@@ -477,9 +503,9 @@ func DeleteHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (c
 		return result, err
 	}
 
-	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups/%s", GetApiGateway(), t.Spec.TenantResource.HsmGroupLabel)
+	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups/%s", GetApiGateway(), hsmGroupLabel)
 	hsmGroup := HsmGroup{}
-	hsmGroup.Label = t.Spec.TenantResource.HsmGroupLabel
+	hsmGroup.Label = hsmGroupLabel
 	hsmGroupBytes, err := json.Marshal(hsmGroup)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -508,23 +534,23 @@ func DeleteHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (c
 	return ctrl.Result{}, errors.New("HSM returned a non-200 response deleting group")
 }
 
-func DeleteHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func DeleteHSMPartition(ctx context.Context, log logr.Logger, hsmPartitionName string) (ctrl.Result, error) {
 
-	result, partitionList, err := ListHSMPartitions(ctx, log, t)
+	result, partitionList, err := ListHSMPartitions(ctx, log)
 	if err != nil {
 		return result, err
 	}
 
 	foundPartition := false
 	for _, partition := range partitionList {
-		if partition.Name == t.Spec.TenantResource.HsmPartitionName {
+		if partition.Name == hsmPartitionName {
 			foundPartition = true
 			break
 		}
 	}
 
 	if !foundPartition {
-		log.Info("HSM partition already deleted: " + t.Spec.TenantResource.HsmPartitionName)
+		log.Info("HSM partition already deleted: " + hsmPartitionName)
 		return ctrl.Result{}, nil
 	}
 
@@ -533,9 +559,9 @@ func DeleteHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 		return result, err
 	}
 
-	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s", GetApiGateway(), t.Spec.TenantResource.HsmPartitionName)
+	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/partitions/%s", GetApiGateway(), hsmPartitionName)
 	hsmPartition := HsmPartition{}
-	hsmPartition.Name = t.Spec.TenantResource.HsmPartitionName
+	hsmPartition.Name = hsmPartitionName
 	hsmPartitionBytes, err := json.Marshal(hsmPartition)
 	if err != nil {
 		return ctrl.Result{}, err

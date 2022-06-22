@@ -41,7 +41,7 @@ import (
 
 func DeleteChildNamespaces(ctx context.Context, log logr.Logger, client client.Client, t *v1alpha1.Tenant, childNamespaces []string) (ctrl.Result, error) {
 	for _, childNamespace := range childNamespaces {
-		childNs := t.Spec.TenantName + "-" + childNamespace
+		childNs := GetChildNamespaceName(t.Spec.TenantName, childNamespace)
 		log.Info("Deleted child namespace: " + childNs)
 		anchor := SubNSAnchorForTenant(t.Spec.TenantName, childNs)
 		err := client.Delete(ctx, anchor)

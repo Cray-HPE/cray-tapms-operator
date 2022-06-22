@@ -49,7 +49,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	tapmshpecomv1alpha1 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	lib "github.com/Cray-HPE/cray-tapms-operator/lib"
 	"github.com/go-logr/logr"
@@ -115,7 +114,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 		if tenant.Spec.ChildNamespaces != nil {
 			for _, childNamespace := range tenant.Spec.ChildNamespaces {
-				childNs := tenant.Spec.TenantName + "-" + childNamespace
+				childNs := lib.GetChildNamespaceName(tenant.Spec.TenantName, childNamespace)
 				result, err := lib.CreateSubanchorNs(ctx, log, r.Client, tenant.Spec.TenantName, childNs)
 				if err != nil {
 					return result, err
@@ -132,21 +131,25 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
-		if len(tenant.Spec.TenantResource.HsmPartitionName) > 0 {
-			log.Info("Creating/updating HSM partition for: " + tenant.Spec.TenantName)
-			result, err = lib.UpdateHSMPartition(ctx, log, tenant)
-			if err != nil {
-				log.Error(err, "Failed to create/update HSM partition")
-				return result, err
+		for _, resource := range tenant.Spec.TenantResources {
+			if len(resource.HsmPartitionName) > 0 {
+				log.Info(fmt.Sprintf("Creating/updating HSM partition for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
+				result, err = lib.UpdateHSMPartition(ctx, log, tenant, resource.HsmPartitionName, resource.Xnames)
+				if err != nil {
+					log.Error(err, "Failed to create/update HSM partition")
+					return result, err
+				}
 			}
 		}
 
-		if len(tenant.Spec.TenantResource.HsmGroupLabel) > 0 {
-			log.Info("Creating/updating HSM group for: " + tenant.Spec.TenantName)
-			result, err = lib.UpdateHSMGroup(ctx, log, tenant)
-			if err != nil {
-				log.Error(err, "Failed to create/update HSM group")
-				return result, err
+		for _, resource := range tenant.Spec.TenantResources {
+			if len(resource.HsmGroupLabel) > 0 {
+				log.Info(fmt.Sprintf("Creating/updating HSM group for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
+				result, err = lib.UpdateHSMGroup(ctx, log, tenant, resource.HsmGroupLabel, resource.Xnames)
+				if err != nil {
+					log.Error(err, "Failed to create/update HSM group")
+					return result, err
+				}
 			}
 		}
 
@@ -157,11 +160,11 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return result, err
 		}
 
-		if !reflect.DeepEqual(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces) {
+		if !reflect.DeepEqual(lib.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {
 			//
 			// Don't need to add members, that gets handled above in the create loop
 			//
-			deletedChildNamespaces := lib.Difference(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces)
+			deletedChildNamespaces := lib.Difference(lib.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces)
 			lib.DeleteChildNamespaces(ctx, log, r.Client, tenant, deletedChildNamespaces)
 			if err != nil {
 				log.Error(err, "Failed to delete child namespaces")
@@ -171,10 +174,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		if lib.TenantIsUpdated(tenant) {
 			log.Info("Updating tenant status")
-			tenant.Status.Xnames = tenant.Spec.TenantResource.Xnames
-			tenant.Status.ChildNamespaces = tenant.Spec.ChildNamespaces
-			tenant.Status.HsmPartitionName = tenant.Spec.TenantResource.HsmPartitionName
-			tenant.Status.HsmGroupLabel = tenant.Spec.TenantResource.HsmGroupLabel
+			tenant.Status.TenantResources = tenant.Spec.TenantResources
+			tenant.Status.ChildNamespaces = lib.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
 			tenant.Status.State = "Deployed"
 			err = r.Status().Update(ctx, tenant)
 			if err != nil {
@@ -233,7 +234,7 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, t *tapmshpecomv1alpha1.Tenant) (ctrl.Result, error) {
 	//
 	// First delete the child namespaces/anchors
 	//
@@ -260,21 +261,25 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 		}
 	}
 
-	if len(t.Spec.TenantResource.HsmPartitionName) > 0 {
-		log.Info("Deleting HSM partition for: " + t.Spec.TenantName)
-		result, err = lib.DeleteHSMPartition(ctx, log, t)
-		if err != nil {
-			log.Error(err, "Failed to delete HSM partition")
-			return result, err
+	for _, resource := range t.Spec.TenantResources {
+		if len(resource.HsmPartitionName) > 0 {
+			log.Info(fmt.Sprintf("Deleting HSM partition %s for tenant %s and resource type %s", resource.HsmPartitionName, t.Spec.TenantName, resource.Type))
+			result, err = lib.DeleteHSMPartition(ctx, log, resource.HsmPartitionName)
+			if err != nil {
+				log.Error(err, "Failed to delete HSM partition")
+				return result, err
+			}
 		}
 	}
 
-	if len(t.Spec.TenantResource.HsmGroupLabel) > 0 {
-		log.Info("Deleting HSM group for: " + t.Spec.TenantName)
-		result, err = lib.DeleteHSMGroup(ctx, log, t)
-		if err != nil {
-			log.Error(err, "Failed to delete HSM group")
-			return result, err
+	for _, resource := range t.Spec.TenantResources {
+		if len(resource.HsmGroupLabel) > 0 {
+			log.Info(fmt.Sprintf("Deleting HSM group %s for tenant %s and resource type %s", resource.HsmGroupLabel, t.Spec.TenantName, resource.Type))
+			result, err = lib.DeleteHSMGroup(ctx, log, resource.HsmGroupLabel)
+			if err != nil {
+				log.Error(err, "Failed to delete HSM group")
+				return result, err
+			}
 		}
 	}
 

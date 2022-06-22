@@ -196,7 +196,7 @@ func DeleteKeycloakGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenan
 		log.Info("Deleted Keycloak group: " + getKeycloakGroupName(t.Spec.TenantName))
 		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{}, errors.New("Keycloak returned a non-200 response deleting partition")
+	return ctrl.Result{}, errors.New("keycloak returned a non-200 response deleting partition")
 }
 
 func GetToken(ctx context.Context, log logr.Logger, masterAuth bool) (ctrl.Result, string, error) {

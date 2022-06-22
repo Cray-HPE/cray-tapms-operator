@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -128,14 +129,48 @@ func getEnvVal(envVar, defVal string) string {
 
 func TenantIsUpdated(tenant *v1alpha1.Tenant) bool {
 	var isUpdated = false
-	if !reflect.DeepEqual(tenant.Status.Xnames, tenant.Spec.TenantResource.Xnames) {
+	if !reflect.DeepEqual(tenant.Status.ChildNamespaces, TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)) {
 		isUpdated = true
 	}
-	if !reflect.DeepEqual(tenant.Status.ChildNamespaces, tenant.Spec.ChildNamespaces) {
+
+	if !reflect.DeepEqual(tenant.Status.TenantResources, tenant.Spec.TenantResources) {
 		isUpdated = true
 	}
-	if tenant.Status.HsmPartitionName != tenant.Spec.TenantResource.HsmPartitionName {
-		isUpdated = true
-	}
+
 	return isUpdated
+}
+
+func GetChildNamespaceName(tenantName string, specChildNamespace string) string {
+	return fmt.Sprintf("%s-%s", tenantName, specChildNamespace)
+}
+
+func TranslateStatusNamespace(statusNamespace string) string {
+	var parts = strings.Split(statusNamespace, "-")
+	if len(parts) < 3 {
+		//
+		// Already w/out the tenant name prefix
+		//
+		return statusNamespace
+	}
+
+	return parts[2]
+}
+
+func TranslateStatusNamespacesForSpec(statusNamespaces []string) []string {
+	var specNamespaces []string = statusNamespaces
+	size := len(statusNamespaces)
+	for i := 0; i < size; i++ {
+		specNamespaces[i] = TranslateStatusNamespace(specNamespaces[i])
+	}
+
+	return specNamespaces
+}
+
+func TranslateSpecNamespacesForStatus(tenantName string, specNamespaces []string) []string {
+	statusNamespaces := make([]string, 0)
+	for _, specNamespace := range specNamespaces {
+		statusNamespaces = append(statusNamespaces, GetChildNamespaceName(tenantName, specNamespace))
+	}
+
+	return statusNamespaces
 }
