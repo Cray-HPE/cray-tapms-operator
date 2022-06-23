@@ -64,29 +64,30 @@ spec:
                 type: array
               tenantname:
                 type: string
-              tenantresource:
-                properties:
-                  hsmpartitionname:
-                    type: string
-                  hsmgrouplabel:
-                    type: string
-                  type:
-                    maxLength: 255
-                    minLength: 1
-                    type: string
-                  xnames:
-                    items:
+              tenantresources:
+                items:
+                  properties:
+                    hsmgrouplabel:
                       type: string
-                    type: array
-                required:
-                - hsmgrouplabel
-                - type
-                - xnames
-                type: object
+                    hsmpartitionname:
+                      type: string
+                    type:
+                      maxLength: 255
+                      minLength: 1
+                      type: string
+                    xnames:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - type
+                  - xnames
+                  type: object
+                type: array
             required:
             - childnamespaces
             - tenantname
-            - tenantresource
+            - tenantresources
             type: object
           status:
             description: TenantStatus defines the observed state of Tenant
@@ -95,15 +96,27 @@ spec:
                 items:
                   type: string
                 type: array
-              hsmpartitionname:
-                type: string
-              hsmgrouplabel:
-                type: string
               state:
                 type: string
-              xnames:
+              tenantresources:
                 items:
-                  type: string
+                  properties:
+                    hsmgrouplabel:
+                      type: string
+                    hsmpartitionname:
+                      type: string
+                    type:
+                      maxLength: 255
+                      minLength: 1
+                      type: string
+                    xnames:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - type
+                  - xnames
+                  type: object
                 type: array
             type: object
         type: object

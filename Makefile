@@ -116,6 +116,7 @@ vet: ## Run go vet against code.
 
 # Chart args
 CHART_PATH ?= kubernetes
+NAME = cray-tapms-operator
 CHART_VERSION ?= local
 HELM_UNITTEST_IMAGE ?= quintush/helm-unittest:3.3.0-0.2.5
 
@@ -126,6 +127,7 @@ chart: chart_setup chart_package chart_test
 
 chart_setup:
 	mkdir -p ${CHART_PATH}/.packaged
+	cp config/crd/bases/tapms.hpe.com_tenants.yaml ${CHART_PATH}/${NAME}/crds
 
 chart_package:
 	echo "appVersion: ${VERSION}" >> ${CHART_PATH}/${NAME}/Chart.yaml
