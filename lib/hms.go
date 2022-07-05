@@ -56,10 +56,11 @@ type HsmPartition struct {
 }
 
 type HsmGroup struct {
-	Label       string
-	Description string
-	Tags        []string
-	Members     HsmIds
+	Label          string
+	Description    string
+	ExclusiveGroup string
+	Tags           []string
+	Members        HsmIds
 }
 
 func ListHSMGroups(ctx context.Context, log logr.Logger) (ctrl.Result, []HsmGroup, error) {
@@ -146,7 +147,7 @@ func ListHSMPartitions(ctx context.Context, log logr.Logger) (ctrl.Result, []Hsm
 	return ctrl.Result{}, hsmPartitionList, nil
 }
 
-func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hsmGroupLabel string, xnames []string) (ctrl.Result, error) {
+func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hsmGroupLabel string, xnames []string, enforceExclusiveHsmGroups bool) (ctrl.Result, error) {
 
 	result, groupList, err := ListHSMGroups(ctx, log)
 	if err != nil {
@@ -165,7 +166,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hs
 		//
 		// create the group
 		//
-		result, err := createHSMGroup(ctx, log, t.Name, hsmGroupLabel, xnames)
+		result, err := createHSMGroup(ctx, log, t.Name, hsmGroupLabel, xnames, enforceExclusiveHsmGroups)
 		if err != nil {
 			return result, err
 		}
@@ -179,7 +180,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hs
 				if (statResource.Type == specResource.Type) && (specResource.HsmGroupLabel == hsmGroupLabel) {
 					log.Info(fmt.Sprintf("Checking for members deleted from HSM group %s", hsmGroupLabel))
 					deletedMembers := Difference(statResource.Xnames, specResource.Xnames)
-					result, err := editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, deletedMembers, http.MethodDelete)
+					result, err := editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, deletedMembers, http.MethodDelete, enforceExclusiveHsmGroups)
 					if err != nil {
 						log.Error(err, "Failed to delete HSM group members")
 						return result, err
@@ -192,7 +193,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hs
 				if (statResource.Type == specResource.Type) && (specResource.HsmGroupLabel == hsmGroupLabel) {
 					log.Info(fmt.Sprintf("Checking for members added to HSM group %s", hsmGroupLabel))
 					addedMembers := Difference(specResource.Xnames, statResource.Xnames)
-					result, err = editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, addedMembers, http.MethodPost)
+					result, err = editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, addedMembers, http.MethodPost, enforceExclusiveHsmGroups)
 					if err != nil {
 						log.Error(err, "Failed to add HSM group members")
 						return result, err
@@ -262,7 +263,7 @@ func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 	return ctrl.Result{}, nil
 }
 
-func editHsmGroupMembers(ctx context.Context, log logr.Logger, tenantName string, hsmGroupLabel string, changedMembers []string, httpMethod string) (ctrl.Result, error) {
+func editHsmGroupMembers(ctx context.Context, log logr.Logger, tenantName string, hsmGroupLabel string, changedMembers []string, httpMethod string, enforceExclusiveHsmGroups bool) (ctrl.Result, error) {
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
@@ -286,7 +287,7 @@ func editHsmGroupMembers(ctx context.Context, log logr.Logger, tenantName string
 			hsmUrl = fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups/%s/members/%s", GetApiGateway(), hsmGroupLabel, member)
 			action = "removing"
 			memberArray := []string{member}
-			result, hsmGroupBytes, err = buildHsmGroupPayload(log, tenantName, hsmGroupLabel, memberArray)
+			result, hsmGroupBytes, err = buildHsmGroupPayload(log, tenantName, hsmGroupLabel, memberArray, enforceExclusiveHsmGroups)
 			if err != nil {
 				return result, err
 			}
@@ -393,10 +394,15 @@ func buildHsmPartitionPayload(log logr.Logger, tenantName string, hsmPartitionNa
 	return ctrl.Result{}, hsmPartitionBytes, err
 }
 
-func buildHsmGroupPayload(log logr.Logger, tenantName string, hsmGroupLabel string, xnames []string) (ctrl.Result, []byte, error) {
+func buildHsmGroupPayload(log logr.Logger, tenantName string, hsmGroupLabel string, xnames []string, enforceExclusiveHsmGroups bool) (ctrl.Result, []byte, error) {
 
 	hsmGroup := HsmGroup{}
 	hsmGroup.Label = hsmGroupLabel
+	if enforceExclusiveHsmGroups {
+		hsmGroup.ExclusiveGroup = "tapms-exclusive-group-label"
+	} else {
+		hsmGroup.ExclusiveGroup = ""
+	}
 	hsmGroup.Tags = append(hsmGroup.Tags, tenantName)
 	for _, xname := range xnames {
 		hsmGroup.Members.Ids = append(hsmGroup.Members.Ids, xname)
@@ -408,14 +414,14 @@ func buildHsmGroupPayload(log logr.Logger, tenantName string, hsmGroupLabel stri
 	return ctrl.Result{}, hsmGroupBytes, err
 }
 
-func createHSMGroup(ctx context.Context, log logr.Logger, tenantName string, hsmGroupLabel string, xnames []string) (ctrl.Result, error) {
+func createHSMGroup(ctx context.Context, log logr.Logger, tenantName string, hsmGroupLabel string, xnames []string, enforceExclusiveHsmGroups bool) (ctrl.Result, error) {
 	result, token, err := GetToken(ctx, log, false)
 	if err != nil {
 		return result, err
 	}
 
 	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/groups", GetApiGateway())
-	result, hsmGroupBytes, err := buildHsmGroupPayload(log, tenantName, hsmGroupLabel, xnames)
+	result, hsmGroupBytes, err := buildHsmGroupPayload(log, tenantName, hsmGroupLabel, xnames, enforceExclusiveHsmGroups)
 	if err != nil {
 		return result, err
 	}

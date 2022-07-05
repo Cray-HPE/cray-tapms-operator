@@ -145,7 +145,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		for _, resource := range tenant.Spec.TenantResources {
 			if len(resource.HsmGroupLabel) > 0 {
 				log.Info(fmt.Sprintf("Creating/updating HSM group for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
-				result, err = lib.UpdateHSMGroup(ctx, log, tenant, resource.HsmGroupLabel, resource.Xnames)
+				result, err = lib.UpdateHSMGroup(ctx, log, tenant, resource.HsmGroupLabel, resource.Xnames, resource.EnforceExclusiveHsmGroups)
 				if err != nil {
 					log.Error(err, "Failed to create/update HSM group")
 					return result, err

@@ -67,6 +67,8 @@ spec:
               tenantresources:
                 items:
                   properties:
+                    enforceexclusivehsmgroups:
+                      type: boolean
                     hsmgrouplabel:
                       type: string
                     hsmpartitionname:
@@ -80,6 +82,7 @@ spec:
                         type: string
                       type: array
                   required:
+                  - enforceexclusivehsmgroups
                   - type
                   - xnames
                   type: object
@@ -101,6 +104,8 @@ spec:
               tenantresources:
                 items:
                   properties:
+                    enforceexclusivehsmgroups:
+                      type: boolean
                     hsmgrouplabel:
                       type: string
                     hsmpartitionname:
@@ -114,6 +119,7 @@ spec:
                         type: string
                       type: array
                   required:
+                  - enforceexclusivehsmgroups
                   - type
                   - xnames
                   type: object

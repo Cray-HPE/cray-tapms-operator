@@ -51,10 +51,11 @@ import (
 type TenantResource struct {
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:MinLength=1
-	Type             string   `json:"type"`
-	Xnames           []string `json:"xnames"`
-	HsmPartitionName string   `json:"hsmpartitionname,omitempty"`
-	HsmGroupLabel    string   `json:"hsmgrouplabel,omitempty"`
+	Type                      string   `json:"type"`
+	Xnames                    []string `json:"xnames"`
+	HsmPartitionName          string   `json:"hsmpartitionname,omitempty"`
+	HsmGroupLabel             string   `json:"hsmgrouplabel,omitempty"`
+	EnforceExclusiveHsmGroups bool     `json:"enforceexclusivehsmgroups"`
 }
 
 // TenantSpec defines the desired state of Tenant
