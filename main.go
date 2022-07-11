@@ -79,6 +79,8 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var namespace string
+	var webhookServerPort int
+	flag.IntVar(&webhookServerPort, "webhook-server-port", 443, "The port that the webhook server serves at.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&namespace, "namespace", "tenants", "The namespace to watch for CRs in")
@@ -97,7 +99,7 @@ func main() {
 		Scheme:                 scheme,
 		Namespace:              namespace,
 		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Port:                   webhookServerPort,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "7ff2bf92.hpe.com",
@@ -113,6 +115,10 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Tenants")
+		os.Exit(1)
+	}
+	if err = (&tapmshpecomv1alpha1.Tenant{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Tenant")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

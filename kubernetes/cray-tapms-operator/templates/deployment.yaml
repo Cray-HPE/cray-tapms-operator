@@ -59,12 +59,24 @@ spec:
         args:
         - --namespace
         - tenants
+        - --webhook-server-port=9443
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
         - name: API_GATEWAY
           value: "{{ .Values.apiGateway }}"
         name: cray-tapms-operator
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
         resources:
           limits:
             cpu: 500m
@@ -73,3 +85,8 @@ spec:
             cpu: 100m
             memory: 100Mi
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: tapms-webhook-server-cert
