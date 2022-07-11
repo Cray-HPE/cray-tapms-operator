@@ -117,10 +117,21 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Tenants")
 		os.Exit(1)
 	}
+
+	if err = (&controllers.TenantReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Tenants"),
+		Scheme: mgr.GetScheme(),
+	}).BuildRootTreeStructure(mgr); err != nil {
+		setupLog.Error(err, "unable build initial tree structure")
+		os.Exit(1)
+	}
+
 	if err = (&tapmshpecomv1alpha1.Tenant{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Tenant")
 		os.Exit(1)
 	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

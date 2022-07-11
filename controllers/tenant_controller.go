@@ -106,12 +106,12 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 
 		result, err := lib.CreateSubanchorNs(ctx, log, r.Client, "tenants", tenant.Spec.TenantName)
-
 		if err != nil {
 			return result, err
 		} else if result.Requeue {
 			return result, nil
 		}
+
 		if tenant.Spec.ChildNamespaces != nil {
 			for _, childNamespace := range tenant.Spec.ChildNamespaces {
 				childNs := lib.GetChildNamespaceName(tenant.Spec.TenantName, childNamespace)
@@ -121,20 +121,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				} else if result.Requeue {
 					return result, nil
 				}
-
-				if childNamespace == "slurm" {
-					result, err = lib.PropagateSecret(ctx, log, "default", childNs, "wlm-s3-credentials")
-					if err != nil {
-						return result, nil
-					}
-				}
 			}
 		}
 
 		for _, resource := range tenant.Spec.TenantResources {
 			if len(resource.HsmPartitionName) > 0 {
 				log.Info(fmt.Sprintf("Creating/updating HSM partition for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
-				result, err = lib.UpdateHSMPartition(ctx, log, tenant, resource.HsmPartitionName, resource.Xnames)
+				result, err := lib.UpdateHSMPartition(ctx, log, tenant, resource.HsmPartitionName, resource.Xnames)
 				if err != nil {
 					log.Error(err, "Failed to create/update HSM partition")
 					return result, err
@@ -145,7 +138,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		for _, resource := range tenant.Spec.TenantResources {
 			if len(resource.HsmGroupLabel) > 0 {
 				log.Info(fmt.Sprintf("Creating/updating HSM group for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
-				result, err = lib.UpdateHSMGroup(ctx, log, tenant, resource.HsmGroupLabel, resource.Xnames, resource.EnforceExclusiveHsmGroups)
+				result, err := lib.UpdateHSMGroup(ctx, log, tenant, resource.HsmGroupLabel, resource.Xnames, resource.EnforceExclusiveHsmGroups)
 				if err != nil {
 					log.Error(err, "Failed to create/update HSM group")
 					return result, err
@@ -232,6 +225,24 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tapmshpecomv1alpha1.Tenant{}).
 		Complete(r)
+}
+
+func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
+	namespaces := []string{"tenants", "slurm-operator", "tapms-operator"}
+	ctx, _ := context.WithCancel(context.Background())
+	for _, ns := range namespaces {
+		_, err := lib.CreateHierarchyConfigForNs(ctx, r.Log, r.Client, "multi-tenancy", ns)
+		if err != nil {
+			r.Log.Error(err, fmt.Sprintf("Failed to creating hierarchy for %s namespace", ns))
+			return err
+		}
+	}
+	_, err := lib.PropagateSecret(ctx, r.Log, "default", "slurm-operator", "wlm-s3-credentials")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, t *tapmshpecomv1alpha1.Tenant) (ctrl.Result, error) {
