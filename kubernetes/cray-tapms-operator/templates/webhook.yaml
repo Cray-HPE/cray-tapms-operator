@@ -111,7 +111,7 @@ spec:
     - server auth
     - client auth
   dnsNames:
-    - "tapms-webhook-service.tenants.svc"
+    - "tapms-webhook-service.tapms-operator.svc"
   issuerRef:
     name: cert-manager-issuer-common
     kind: Issuer

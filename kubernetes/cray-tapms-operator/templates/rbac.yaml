@@ -96,6 +96,7 @@ rules:
   - hnc.x-k8s.io
   resources:
   - subnamespaceanchors
+  - hierarchyconfigurations
   verbs:
   - create
   - delete

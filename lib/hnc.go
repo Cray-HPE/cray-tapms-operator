@@ -68,6 +68,21 @@ func SubNSAnchorForTenant(parentNs string, childNs string) *api.SubnamespaceAnch
 	return anchor
 }
 
+func HierarchyConfigForTenant(parentNs string, childNs string) *api.HierarchyConfiguration {
+
+	hierarchyConfigSpec := &api.HierarchyConfigurationSpec{
+		Parent: parentNs,
+	}
+	hierarchy := &api.HierarchyConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "hierarchy",
+			Namespace: childNs,
+		},
+		Spec: *hierarchyConfigSpec,
+	}
+	return hierarchy
+}
+
 func CreateSubanchorNs(ctx context.Context, log logr.Logger, client client.Client, parentNs string, childNs string) (ctrl.Result, error) {
 	subNsAnchor := SubNSAnchorForTenant(parentNs, childNs)
 	err := client.Create(ctx, subNsAnchor)
@@ -86,5 +101,26 @@ func CreateSubanchorNs(ctx context.Context, log logr.Logger, client client.Clien
 	}
 
 	log.Info("Created subanchor: " + childNs + " in parent namespace: " + parentNs)
+	return ctrl.Result{}, nil
+}
+
+func CreateHierarchyConfigForNs(ctx context.Context, log logr.Logger, client client.Client, parentNs string, childNs string) (ctrl.Result, error) {
+	hierarchyConfig := HierarchyConfigForTenant(parentNs, childNs)
+	err := client.Create(ctx, hierarchyConfig)
+	if err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			log.Info("hierarchyConfig: " + childNs + " in parent namespace: " + parentNs + " already exists")
+			return ctrl.Result{}, nil
+		} else if k8serrors.IsNotFound(err) {
+			//
+			// It can take the hnc-manager a bit to create hierarchies,
+			// so if we get not found, we'll try again.
+			//
+			return ctrl.Result{Requeue: true}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Created hierarchyConfig: " + childNs + " in parent namespace: " + parentNs)
 	return ctrl.Result{}, nil
 }
