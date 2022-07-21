@@ -27,7 +27,9 @@
 package v1alpha1
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -62,6 +64,14 @@ var _ webhook.Validator = &Tenant{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (t *Tenant) ValidateCreate() error {
 	Log.Info("Validating create for", "tenant", t.Name)
+	for _, specResource := range t.Spec.TenantResources {
+		if specResource.Type == "compute" {
+			err := t.ValidateNodeTypeForXnames(specResource.Xnames, "Node", "Compute")
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -69,6 +79,14 @@ func (t *Tenant) ValidateCreate() error {
 func (t *Tenant) ValidateUpdate(old runtime.Object) error {
 	Log.Info("Validating update for", "tenant", t.Name)
 	for _, specResource := range t.Spec.TenantResources {
+
+		if specResource.Type == "compute" {
+			err := t.ValidateNodeTypeForXnames(specResource.Xnames, "Node", "Compute")
+			if err != nil {
+				return err
+			}
+		}
+
 		for _, statusResource := range t.Status.TenantResources {
 			if statusResource.Type == specResource.Type {
 				//
@@ -93,5 +111,34 @@ func (t *Tenant) ValidateUpdate(old runtime.Object) error {
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (t *Tenant) ValidateDelete() error {
 	Log.Info("Validating delete for", "tenant", t.Name)
+	return nil
+}
+
+func (t *Tenant) ValidateNodeTypeForXnames(xnames []string, nodeType string, role string) error {
+	ctx, _ := context.WithCancel(context.Background())
+	hsmComponentList, err := GetComponentList(ctx, Log, nodeType, role)
+	if err != nil {
+		return err
+	}
+	var failedXnames []string
+	failedXnames = make([]string, 0, len(xnames))
+
+	for _, xname := range xnames {
+		found := false
+		for _, component := range hsmComponentList.Components {
+			if xname == component.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			failedXnames = append(failedXnames, xname)
+		}
+	}
+
+	if len(failedXnames) > 0 {
+		return fmt.Errorf("the following xname(s) do not have type %s and role %s: %v", nodeType, role, failedXnames)
+	}
+
 	return nil
 }

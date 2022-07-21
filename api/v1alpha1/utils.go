@@ -24,7 +24,7 @@
  *
  */
 
-package lib
+package v1alpha1
 
 import (
 	"context"
@@ -35,7 +35,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -127,7 +126,7 @@ func getEnvVal(envVar, defVal string) string {
 	return defVal
 }
 
-func TenantIsUpdated(tenant *v1alpha1.Tenant) bool {
+func TenantIsUpdated(tenant *Tenant) bool {
 	var isUpdated = false
 	if !reflect.DeepEqual(tenant.Status.ChildNamespaces, TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)) {
 		isUpdated = true

@@ -24,7 +24,7 @@
  *
  */
 
-package lib
+package v1alpha1
 
 import (
 	"context"
@@ -32,14 +32,13 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	api "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
-	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func DeleteChildNamespaces(ctx context.Context, log logr.Logger, client client.Client, t *v1alpha1.Tenant, childNamespaces []string) (ctrl.Result, error) {
+func DeleteChildNamespaces(ctx context.Context, log logr.Logger, client client.Client, t *Tenant, childNamespaces []string) (ctrl.Result, error) {
 	for _, childNamespace := range childNamespaces {
 		childNs := GetChildNamespaceName(t.Spec.TenantName, childNamespace)
 		log.Info("Deleted child namespace: " + childNs)
