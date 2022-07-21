@@ -24,7 +24,7 @@
  *
  */
 
-package lib
+package v1alpha1
 
 import (
 	"bytes"
@@ -46,7 +46,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 )
 
@@ -56,7 +55,7 @@ type KeycloakGroup struct {
 	Id   string `json:"id,omitempty"`
 }
 
-func listKeycloakGroups(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []KeycloakGroup, error) {
+func listKeycloakGroups(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, []KeycloakGroup, error) {
 
 	result, token, err := GetToken(ctx, log, true)
 	if err != nil {
@@ -102,7 +101,7 @@ func listKeycloakGroups(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant
 
 }
 
-func UpdateKeycloakGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func UpdateKeycloakGroup(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
 
 	result, groupList, err := listKeycloakGroups(ctx, log, t)
 	if err != nil {
@@ -150,7 +149,7 @@ func UpdateKeycloakGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenan
 	return ctrl.Result{}, errors.New("keycloak returned a non-200 response creating/updating group")
 }
 
-func DeleteKeycloakGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, error) {
+func DeleteKeycloakGroup(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
 
 	result, groupList, err := listKeycloakGroups(ctx, log, t)
 	if err != nil {
@@ -241,7 +240,7 @@ func GetToken(ctx context.Context, log logr.Logger, masterAuth bool) (ctrl.Resul
 	return ctrl.Result{}, result["access_token"], nil
 }
 
-func buildKeycloakGroupPayload(log logr.Logger, t *v1alpha1.Tenant) (ctrl.Result, []byte, error) {
+func buildKeycloakGroupPayload(log logr.Logger, t *Tenant) (ctrl.Result, []byte, error) {
 
 	keycloakGroup := KeycloakGroup{}
 	keycloakGroup.Name = getKeycloakGroupName(t.Spec.TenantName)

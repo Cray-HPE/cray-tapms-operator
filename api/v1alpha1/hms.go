@@ -24,7 +24,7 @@
  *
  */
 
-package lib
+package v1alpha1
 
 import (
 	"bytes"
@@ -35,7 +35,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -61,6 +60,26 @@ type HsmGroup struct {
 	ExclusiveGroup string
 	Tags           []string
 	Members        HsmIds
+}
+type HsmComponent struct {
+	ID                  string
+	Type                string
+	State               string
+	Flag                string
+	Enabled             bool
+	SoftwareStatus      string
+	Role                string
+	SubRole             string
+	NID                 int32
+	Subtype             string
+	NetType             string
+	Arch                string
+	Class               string
+	ReservationDisabled bool
+	Locked              bool
+}
+type HsmComponentList struct {
+	Components []HsmComponent
 }
 
 func ListHSMGroups(ctx context.Context, log logr.Logger) (ctrl.Result, []HsmGroup, error) {
@@ -147,7 +166,7 @@ func ListHSMPartitions(ctx context.Context, log logr.Logger) (ctrl.Result, []Hsm
 	return ctrl.Result{}, hsmPartitionList, nil
 }
 
-func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hsmGroupLabel string, xnames []string, enforceExclusiveHsmGroups bool) (ctrl.Result, error) {
+func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *Tenant, hsmGroupLabel string, xnames []string, enforceExclusiveHsmGroups bool) (ctrl.Result, error) {
 
 	result, groupList, err := ListHSMGroups(ctx, log)
 	if err != nil {
@@ -205,7 +224,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hs
 	return ctrl.Result{}, nil
 }
 
-func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *v1alpha1.Tenant, hsmPartitionName string, xnames []string) (ctrl.Result, error) {
+func UpdateHSMPartition(ctx context.Context, log logr.Logger, t *Tenant, hsmPartitionName string, xnames []string) (ctrl.Result, error) {
 
 	result, partitionList, err := ListHSMPartitions(ctx, log)
 	if err != nil {
@@ -594,4 +613,45 @@ func DeleteHSMPartition(ctx context.Context, log logr.Logger, hsmPartitionName s
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, errors.New("HSM returned a non-200 response deleting partition")
+}
+
+func GetComponentList(ctx context.Context, log logr.Logger, nodeType string, role string) (*HsmComponentList, error) {
+
+	_, token, err := GetToken(ctx, log, false)
+	if err != nil {
+		return nil, err
+	}
+	hsmUrl := fmt.Sprintf("https://%s/apis/smd/hsm/v2/State/Components?type=%s&role=%s", GetApiGateway(), nodeType, role)
+	hsmComponentList := HsmComponentList{}
+	hsmComponentListBytes, err := json.Marshal(hsmComponentList)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodGet, hsmUrl, bytes.NewBuffer(hsmComponentListBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, errors.New("HSM returned a non-200 response listing components")
+	}
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(body, &hsmComponentList)
+	if err != nil {
+		return nil, err
+	}
+
+	return &hsmComponentList, nil
 }
