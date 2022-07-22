@@ -403,9 +403,7 @@ func buildHsmPartitionPayload(log logr.Logger, tenantName string, hsmPartitionNa
 	hsmPartition := HsmPartition{}
 	hsmPartition.Name = hsmPartitionName
 	hsmPartition.Tags = append(hsmPartition.Tags, tenantName)
-	for _, xname := range xnames {
-		hsmPartition.Members.Ids = append(hsmPartition.Members.Ids, xname)
-	}
+	hsmPartition.Members.Ids = append(hsmPartition.Members.Ids, xnames...)
 	hsmPartitionBytes, err := json.Marshal(hsmPartition)
 	if err != nil {
 		return ctrl.Result{}, nil, err

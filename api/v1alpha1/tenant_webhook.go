@@ -70,6 +70,11 @@ func (t *Tenant) ValidateCreate() error {
 			if err != nil {
 				return err
 			}
+
+			err = t.ValidateExclusiveGroupMembership(specResource.Xnames, specResource.HsmGroupLabel, specResource.EnforceExclusiveHsmGroups)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -82,6 +87,11 @@ func (t *Tenant) ValidateUpdate(old runtime.Object) error {
 
 		if specResource.Type == "compute" {
 			err := t.ValidateNodeTypeForXnames(specResource.Xnames, "Node", "Compute")
+			if err != nil {
+				return err
+			}
+
+			err = t.ValidateExclusiveGroupMembership(specResource.Xnames, specResource.HsmGroupLabel, specResource.EnforceExclusiveHsmGroups)
 			if err != nil {
 				return err
 			}
@@ -138,6 +148,40 @@ func (t *Tenant) ValidateNodeTypeForXnames(xnames []string, nodeType string, rol
 
 	if len(failedXnames) > 0 {
 		return fmt.Errorf("the following xname(s) do not have type %s and role %s: %v", nodeType, role, failedXnames)
+	}
+
+	return nil
+}
+
+func (t *Tenant) ValidateExclusiveGroupMembership(xnames []string, hsmGroupLabel string, exclusiveFlag bool) error {
+
+	if !exclusiveFlag {
+		return nil
+	}
+
+	ctx, _ := context.WithCancel(context.Background())
+	_, groupList, err := ListHSMGroups(ctx, Log)
+	if err != nil {
+		return err
+	}
+	var currentTenantXnames []string
+	currentTenantXnames = make([]string, 0, len(xnames))
+	for _, xname := range xnames {
+		for _, group := range groupList {
+			if (group.ExclusiveGroup != "tapms-exclusive-group-label") || (group.Label == hsmGroupLabel) {
+				continue
+			}
+
+			for _, member := range group.Members.Ids {
+				if xname == member {
+					currentTenantXnames = append(currentTenantXnames, xname)
+				}
+			}
+		}
+	}
+
+	if len(currentTenantXnames) > 0 {
+		return fmt.Errorf("the following xname(s): '%v' already exist in an exclusive hsm group", currentTenantXnames)
 	}
 
 	return nil
