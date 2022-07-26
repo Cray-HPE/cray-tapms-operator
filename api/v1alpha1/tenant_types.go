@@ -75,6 +75,7 @@ type TenantStatus struct {
 	State           string           `json:"state,omitempty"`
 	ChildNamespaces []string         `json:"childnamespaces,omitempty"`
 	TenantResources []TenantResource `json:"tenantresources,omitempty"`
+	UUID            string           `json:"uuid,omitempty"`
 }
 
 //+kubebuilder:object:root=true

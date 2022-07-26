@@ -34,12 +34,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-tapms-hpe-com-hpe-com-v1alpha1-tenant
+      path: /mutate-tapms-hpe-com-v1alpha1-tenant
   failurePolicy: Fail
   name: mtenant.kb.io
   rules:
   - apiGroups:
-    - tapms.hpe.com.hpe.com
+    - tapms.hpe.com
     apiVersions:
     - v1alpha1
     operations:
@@ -61,12 +61,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-tapms-hpe-com-hpe-com-v1alpha1-tenant
+      path: /validate-tapms-hpe-com-v1alpha1-tenant
   failurePolicy: Fail
   name: vtenant.kb.io
   rules:
   - apiGroups:
-    - tapms.hpe.com.hpe.com
+    - tapms.hpe.com
     apiVersions:
     - v1alpha1
     operations:
