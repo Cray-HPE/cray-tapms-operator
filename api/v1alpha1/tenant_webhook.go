@@ -125,7 +125,8 @@ func (t *Tenant) ValidateDelete() error {
 }
 
 func (t *Tenant) ValidateNodeTypeForXnames(xnames []string, nodeType string, role string) error {
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	hsmComponentList, err := GetComponentList(ctx, Log, nodeType, role)
 	if err != nil {
 		return err
@@ -159,7 +160,8 @@ func (t *Tenant) ValidateExclusiveGroupMembership(xnames []string, hsmGroupLabel
 		return nil
 	}
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	_, groupList, err := ListHSMGroups(ctx, Log)
 	if err != nil {
 		return err

@@ -95,6 +95,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if v1.TenantIsUpdated(tenant) {
 			if tenant.Status.State != "Deploying" {
 				tenant.Status.State = "Deploying"
+				tenant.Status.UUID = string(tenant.ObjectMeta.UID)
 				err = r.Status().Update(ctx, tenant)
 				if err != nil {
 					return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
@@ -228,7 +229,8 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
 	namespaces := []string{"tenants", "slurm-operator", "tapms-operator"}
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, ns := range namespaces {
 		_, err := v1.CreateHierarchyConfigForNs(ctx, r.Log, r.Client, "multi-tenancy", ns)
 		if err != nil {
