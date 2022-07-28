@@ -64,6 +64,7 @@ type TenantSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	TenantName      string           `json:"tenantname"`
+	State           string           `json:"state"`
 	ChildNamespaces []string         `json:"childnamespaces"`
 	TenantResources []TenantResource `json:"tenantresources"`
 }
@@ -72,7 +73,6 @@ type TenantSpec struct {
 type TenantStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	State           string           `json:"state,omitempty"`
 	ChildNamespaces []string         `json:"childnamespaces,omitempty"`
 	TenantResources []TenantResource `json:"tenantresources,omitempty"`
 	UUID            string           `json:"uuid,omitempty"`
