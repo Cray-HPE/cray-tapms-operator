@@ -93,14 +93,15 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	isTenantMarkedToBeDeleted := tenant.GetDeletionTimestamp() != nil
 	if !isTenantMarkedToBeDeleted {
 		if v1.TenantIsUpdated(tenant) {
-			if tenant.Status.State != "Deploying" {
-				tenant.Status.State = "Deploying"
-				tenant.Status.UUID = string(tenant.ObjectMeta.UID)
-				err = r.Status().Update(ctx, tenant)
+			tenant.Status.UUID = string(tenant.ObjectMeta.UID)
+			err = r.Status().Update(ctx, tenant)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
+			} else {
+				err = r.Update(ctx, tenant)
 				if err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
-				} else {
-					return ctrl.Result{}, nil
+					log.Error(err, "Failed to update resource")
+					return ctrl.Result{}, err
 				}
 			}
 		}
@@ -169,21 +170,24 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			log.Info("Updating tenant status")
 			tenant.Status.TenantResources = tenant.Spec.TenantResources
 			tenant.Status.ChildNamespaces = v1.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
-			tenant.Status.State = "Deployed"
 			err = r.Status().Update(ctx, tenant)
 			if err != nil {
 				log.Error(err, "Failed to update final tenant status")
 				return ctrl.Result{}, err
 			}
+			err = r.Update(ctx, tenant)
+			if err != nil {
+				log.Error(err, "Failed to update tenant resource")
+				return ctrl.Result{}, err
+			}
 		}
 
 	} else {
-		if tenant.Status.State != "Deleting" {
-			tenant.Status.State = "Deleting"
-			err = r.Status().Update(ctx, tenant)
-			if err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
-			}
+		tenant.Spec.State = "Deleting"
+		err = r.Update(ctx, tenant)
+		if err != nil {
+			log.Error(err, "Failed to update tenant state")
+			return ctrl.Result{Requeue: true}, err
 		}
 		if controllerutil.ContainsFinalizer(tenant, tenantFinalizer) {
 			// Run finalization logic for tenantFinalizer. If the
