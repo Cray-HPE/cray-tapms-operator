@@ -54,6 +54,16 @@ var _ webhook.Defaulter = &Tenant{}
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (t *Tenant) Default() {
 	Log.Info("Validating default for", "tenant", t.Name)
+
+	if t.GetDeletionTimestamp() != nil {
+		t.Spec.State = "Deleting"
+	} else if t.Spec.State == "" {
+		t.Spec.State = "New"
+	} else if TenantIsUpdated(t) {
+		t.Spec.State = "Deploying"
+	} else {
+		t.Spec.State = "Deployed"
+	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
