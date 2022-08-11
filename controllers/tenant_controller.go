@@ -53,6 +53,7 @@ import (
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -243,6 +244,24 @@ func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
 		}
 	}
 	_, err := v1.PropagateSecret(ctx, r.Log, "default", "slurm-operator", "wlm-s3-credentials")
+	if err != nil {
+		return err
+	}
+
+	//
+	// Since this is called before cache is enabled, need to
+	// create/initialize a client.
+	//
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	newClient, err := client.New(cfg, client.Options{Scheme: mgr.GetScheme()})
+	if err != nil {
+		return err
+	}
+	_, err = v1.AddObjectPropagation(ctx, r.Log, newClient)
 	if err != nil {
 		return err
 	}

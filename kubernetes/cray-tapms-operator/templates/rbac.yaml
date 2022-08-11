@@ -97,6 +97,7 @@ rules:
   resources:
   - subnamespaceanchors
   - hierarchyconfigurations
+  - hncconfigurations
   verbs:
   - create
   - delete

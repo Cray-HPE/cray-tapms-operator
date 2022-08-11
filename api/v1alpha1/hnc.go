@@ -28,8 +28,10 @@ package v1alpha1
 
 import (
 	"context"
+	"fmt"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	api "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	"github.com/go-logr/logr"
@@ -121,5 +123,62 @@ func CreateHierarchyConfigForNs(ctx context.Context, log logr.Logger, client cli
 	}
 
 	log.Info("Created hierarchyConfig: " + childNs + " in parent namespace: " + parentNs)
+	return ctrl.Result{}, nil
+}
+
+func HNCConfiguration(resourceVersion string) *api.HNCConfiguration {
+	limitRangeSpec := &api.ResourceSpec{
+		Group:    "",
+		Resource: "limitrange",
+		Mode:     "Propagate",
+	}
+	resourceQuotaSpec := &api.ResourceSpec{
+		Group:    "",
+		Resource: "resourcequota",
+		Mode:     "Propagate",
+	}
+	rolesQuotaSpec := &api.ResourceSpec{
+		Group:    "",
+		Resource: "roles",
+		Mode:     "Propagate",
+	}
+	rolesBindingsSpec := &api.ResourceSpec{
+		Group:    "",
+		Resource: "rolebindings",
+		Mode:     "Propagate",
+	}
+
+	hncConfigurationSpec := &api.HNCConfigurationSpec{
+		Resources: []api.ResourceSpec{*limitRangeSpec, *resourceQuotaSpec, *rolesQuotaSpec, *rolesBindingsSpec},
+	}
+
+	hncConfiguration := &api.HNCConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "config",
+			ResourceVersion: resourceVersion,
+		},
+		Spec: *hncConfigurationSpec,
+	}
+	return hncConfiguration
+}
+
+func AddObjectPropagation(ctx context.Context, log logr.Logger, client client.Client) (ctrl.Result, error) {
+	currentConfig := &api.HNCConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "config",
+		},
+	}
+	err := client.Get(ctx, types.NamespacedName{Name: "config", Namespace: "hnc-system"}, currentConfig)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	hncConfig := HNCConfiguration(currentConfig.ObjectMeta.ResourceVersion)
+	err = client.Update(ctx, hncConfig)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	log.Info(fmt.Sprintf("Successful update of resources for propogation: '%v'", hncConfig.Spec.Resources))
 	return ctrl.Result{}, nil
 }
