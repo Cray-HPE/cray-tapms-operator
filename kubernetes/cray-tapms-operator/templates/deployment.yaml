@@ -65,6 +65,8 @@ spec:
         env:
         - name: API_GATEWAY
           value: "{{ .Values.apiGateway }}"
+        - name: SERVER_PORT
+          value: "{{ .Values.serverPort }}"
         name: cray-tapms-operator
         ports:
         - containerPort: 9443

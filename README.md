@@ -54,3 +54,10 @@ CSM NCNs are deployed with the `kubectl-hns` plugin, and as such when logged int
       ├── [s] tenant-dev-slurm
       └── [s] tenant-dev-user
 ```
+
+## Update swagger
+
+   ```
+   scripts/swagger.gen.sh
+   ```
+   > Note: This script will try to update `docs/swagger.md` if nodejs is installed. Otherwise, it will only update `docs/swagger.yaml`.  [NodeJS](https://nodejs.org/en/download/) is required for markdown version of swagger doc.

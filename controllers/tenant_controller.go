@@ -227,9 +227,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Tenant{}).
 		Complete(r)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
