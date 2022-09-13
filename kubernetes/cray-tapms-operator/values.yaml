@@ -23,7 +23,7 @@
 #
 image:
   repository: artifactory.algol60.net/csm-docker/stable/cray-tapms-operator
-  tag: v0.0.2
+  tag: v0.0.8
   pullPolicy: IfNotPresent
 numReplicas: 1
 apiGateway: api-gw-service-nmn.local
