@@ -118,6 +118,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&controllers.TenantServer{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Server"),
+		Scheme: mgr.GetScheme(),
+	}).SetupServerController(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "server", "Server")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.TenantReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Tenants"),

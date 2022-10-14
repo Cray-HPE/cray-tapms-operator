@@ -44,7 +44,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-var apiGateway = getEnvVal("API_GATEWAY", "api-gw-service-nmn.local")
+var (
+	apiGateway = getEnvVal("API_GATEWAY", "api-gw-service-nmn.local")
+	serverPort = getEnvVal("SERVER_PORT", "2875")
+)
 
 func NewHttpClient() *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -58,6 +61,10 @@ func NewHttpClient() *http.Client {
 
 func GetApiGateway() string {
 	return apiGateway
+}
+
+func GetServerPort() string {
+	return ":" + serverPort
 }
 
 func Difference(a, b []string) (diff []string) {
