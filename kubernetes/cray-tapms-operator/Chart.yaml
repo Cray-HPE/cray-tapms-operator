@@ -23,7 +23,7 @@
 #
 apiVersion: v2
 name: cray-tapms-operator
-version: 0.0.9
+version: 0.0.10
 description: Tenant and Partition Management Operator
 keywords:
   - cray-tapms
