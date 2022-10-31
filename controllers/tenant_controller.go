@@ -247,9 +247,13 @@ func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
 			return err
 		}
 	}
-	_, err := v1.PropagateSecret(ctx, r.Log, "default", "slurm-operator", "wlm-s3-credentials")
-	if err != nil {
-		return err
+
+	wlm_namespaces := []string{"slurm-operator", "user"}
+	for _, ns := range wlm_namespaces {
+		_, err := v1.PropagateSecret(ctx, r.Log, "default", ns, "wlm-s3-credentials")
+		if err != nil {
+			return err
+		}
 	}
 
 	//
