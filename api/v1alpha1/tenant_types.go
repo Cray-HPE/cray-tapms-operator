@@ -45,54 +45,48 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
+// @Description The desired resources for the Tenant
 type TenantResource struct {
-	// +kubebuilder:validation:MaxLength=255
-	// +kubebuilder:validation:MinLength=1
-	Type                      string   `json:"type"`
-	Xnames                    []string `json:"xnames"`
-	HsmPartitionName          string   `json:"hsmpartitionname,omitempty"`
-	HsmGroupLabel             string   `json:"hsmgrouplabel,omitempty"`
+	Type                      string   `json:"type" example:"compute" binding:"required"`
+	Xnames                    []string `json:"xnames" example:"x0c3s5b0n0,x0c3s6b0n0" binding:"required"`
+	HsmPartitionName          string   `json:"hsmpartitionname,omitempty" example:"blue"`
+	HsmGroupLabel             string   `json:"hsmgrouplabel,omitempty" example:"green"`
 	EnforceExclusiveHsmGroups bool     `json:"enforceexclusivehsmgroups"`
-}
+} // @name TenantResource
 
-// TenantSpec defines the desired state of Tenant
+// @Description The desired state of Tenant
 type TenantSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	TenantName      string   `json:"tenantname" example:"vcluster-blue" binding:"required"`
+	State           string   `json:"state" example:"New,Deploying,Deployed,Deleting"`
+	ChildNamespaces []string `json:"childnamespaces" example:"vcluster-blue-slurm"`
+	// The desired resources for the Tenant
+	TenantResources []TenantResource `json:"tenantresources" binding:"required"`
+} //@name TenantSpec
 
-	TenantName      string           `json:"tenantname"`
-	State           string           `json:"state"`
-	ChildNamespaces []string         `json:"childnamespaces"`
-	TenantResources []TenantResource `json:"tenantresources"`
-}
-
-// TenantStatus defines the observed state of Tenant
+// @Description The observed state of Tenant
 type TenantStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	ChildNamespaces []string         `json:"childnamespaces,omitempty"`
+	ChildNamespaces []string `json:"childnamespaces,omitempty" example:"vcluster-blue-slurm"`
+	// The desired resources for the Tenant
 	TenantResources []TenantResource `json:"tenantresources,omitempty"`
-	UUID            string           `json:"uuid,omitempty"`
-}
+	UUID            string           `json:"uuid,omitempty" example:"550e8400-e29b-41d4-a716-446655440000" format:"uuid"`
+} // @name TenantStatus
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Tenant is the Schema for the tenants API
+// @Description The primary schema/definition of a tenant
 type Tenant struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   TenantSpec   `json:"spec,omitempty"`
+	metav1.TypeMeta   `json:",inline" swaggerignore:"true"`
+	metav1.ObjectMeta `json:"metadata,omitempty" swaggerignore:"true"`
+	// The desired state of Tenant
+	Spec TenantSpec `json:"spec,omitempty" binding:"required"`
+	// The observed state of Tenant
 	Status TenantStatus `json:"status,omitempty"`
-}
+} // @name Tenant
 
 //+kubebuilder:object:root=true
 
-// TenantList contains a list of Tenant
+// @Description List of Tenants
 type TenantList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
