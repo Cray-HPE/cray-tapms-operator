@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2023 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -52,11 +52,11 @@ const docTemplate = `{
                 "tags": [
                     "Tenant and Partition Management System"
                 ],
-                "summary": "Get a tenant spec/status",
+                "summary": "Get a tenant's spec/status",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "either name or uuid of the tenant",
+                        "description": "Either the Name or UUID of the Tenant",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -66,7 +66,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ResponseOk"
+                            "$ref": "#/definitions/Tenant"
                         }
                     },
                     "400": {
@@ -101,12 +101,15 @@ const docTemplate = `{
                 "tags": [
                     "Tenant and Partition Management System"
                 ],
-                "summary": "Get list of tenants",
+                "summary": "Get list of tenants' spec/status",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ResponseOk"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/Tenant"
+                            }
                         }
                     },
                     "400": {
@@ -136,15 +139,121 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Error Message..."
                 }
             }
         },
-        "ResponseOk": {
+        "Tenant": {
+            "description": "The primary schema/definition of a tenant",
+            "type": "object",
+            "required": [
+                "spec"
+            ],
+            "properties": {
+                "spec": {
+                    "description": "The desired state of Tenant",
+                    "$ref": "#/definitions/TenantSpec"
+                },
+                "status": {
+                    "description": "The observed state of Tenant",
+                    "$ref": "#/definitions/TenantStatus"
+                }
+            }
+        },
+        "TenantResource": {
+            "description": "The desired resources for the Tenant",
+            "type": "object",
+            "required": [
+                "type",
+                "xnames"
+            ],
+            "properties": {
+                "enforceexclusivehsmgroups": {
+                    "type": "boolean"
+                },
+                "hsmgrouplabel": {
+                    "type": "string",
+                    "example": "green"
+                },
+                "hsmpartitionname": {
+                    "type": "string",
+                    "example": "blue"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "compute"
+                },
+                "xnames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "x0c3s5b0n0",
+                        "x0c3s6b0n0"
+                    ]
+                }
+            }
+        },
+        "TenantSpec": {
+            "description": "The desired state of Tenant",
+            "type": "object",
+            "required": [
+                "tenantname",
+                "tenantresources"
+            ],
+            "properties": {
+                "childnamespaces": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "vcluster-blue-slurm"
+                    ]
+                },
+                "state": {
+                    "type": "string",
+                    "example": "New,Deploying,Deployed,Deleting"
+                },
+                "tenantname": {
+                    "type": "string",
+                    "example": "vcluster-blue"
+                },
+                "tenantresources": {
+                    "description": "The desired resources for the Tenant",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TenantResource"
+                    }
+                }
+            }
+        },
+        "TenantStatus": {
+            "description": "The observed state of Tenant",
             "type": "object",
             "properties": {
-                "message": {
-                    "type": "string"
+                "childnamespaces": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "vcluster-blue-slurm"
+                    ]
+                },
+                "tenantresources": {
+                    "description": "The desired resources for the Tenant",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TenantResource"
+                    }
+                },
+                "uuid": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 }
             }
         }
@@ -153,12 +262,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "v1alpha1",
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "TAPMS Tenant Status API",
+	Description:      "Read-Only APIs to Retrieve Tenant Status",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }

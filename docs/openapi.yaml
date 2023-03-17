@@ -1,0 +1,164 @@
+openapi: 3.0.1
+info:
+  title: TAPMS Tenant Status API
+  description: Read-Only APIs to Retrieve Tenant Status
+  contact: {}
+  version: v1alpha1
+servers:
+- url: /
+paths:
+  /apis/tapms/v1/tenant/{id}:
+    get:
+      tags:
+      - Tenant and Partition Management System
+      summary: Get a tenant's spec/status
+      parameters:
+      - name: id
+        in: path
+        description: Either the Name or UUID of the Tenant
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+  /apis/tapms/v1/tenants:
+    get:
+      tags:
+      - Tenant and Partition Management System
+      summary: Get list of tenants' spec/status
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tenant'
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+        500:
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+components:
+  schemas:
+    ResponseError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Error Message...
+    Tenant:
+      required:
+      - spec
+      type: object
+      properties:
+        spec:
+          $ref: '#/components/schemas/TenantSpec'
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+      description: The primary schema/definition of a tenant
+    TenantResource:
+      required:
+      - type
+      - xnames
+      type: object
+      properties:
+        enforceexclusivehsmgroups:
+          type: boolean
+        hsmgrouplabel:
+          type: string
+          example: green
+        hsmpartitionname:
+          type: string
+          example: blue
+        type:
+          type: string
+          example: compute
+        xnames:
+          type: array
+          example:
+          - x0c3s5b0n0
+          - x0c3s6b0n0
+          items:
+            type: string
+      description: The desired resources for the Tenant
+    TenantSpec:
+      required:
+      - tenantname
+      - tenantresources
+      type: object
+      properties:
+        childnamespaces:
+          type: array
+          example:
+          - vcluster-blue-slurm
+          items:
+            type: string
+        state:
+          type: string
+          example: New,Deploying,Deployed,Deleting
+        tenantname:
+          type: string
+          example: vcluster-blue
+        tenantresources:
+          type: array
+          description: The desired resources for the Tenant
+          items:
+            $ref: '#/components/schemas/TenantResource'
+      description: The desired state of Tenant
+    TenantStatus:
+      type: object
+      properties:
+        childnamespaces:
+          type: array
+          example:
+          - vcluster-blue-slurm
+          items:
+            type: string
+        tenantresources:
+          type: array
+          description: The desired resources for the Tenant
+          items:
+            $ref: '#/components/schemas/TenantResource'
+        uuid:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+      description: The observed state of Tenant

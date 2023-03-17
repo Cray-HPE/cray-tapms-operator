@@ -47,11 +47,11 @@ type TenantServer struct {
 }
 
 type ResponseError struct {
-	Message string `json:"message"`
+	Message string `json:"message" example:"Error Message..."`
 } //@name ResponseError
 
 type ResponseOk struct {
-	Message string `json:"message"`
+	Message string `json:"message" example:"OK"`
 } //@name ResponseOk
 
 func (r *TenantServer) SetupServerController(mgr ctrl.Manager) error {
@@ -100,11 +100,12 @@ func (r *TenantServer) GetTenantsFromCache(c *gin.Context) (*v1.TenantList, erro
 }
 
 // GetTenants
-// @Summary Get list of tenants
+// @Title   Tenant and Partition Management System Status API
+// @Summary Get list of tenants' spec/status
 // @Tags    Tenant and Partition Management System
 // @Accept  json
 // @Produce json
-// @Success 200 {object} ResponseOk
+// @Success 200 {array}  v1alpha1.Tenant
 // @Failure 400 {object} ResponseError
 // @Failure 404 {object} ResponseError
 // @Failure 500 {object} ResponseError
@@ -119,12 +120,12 @@ func (r *TenantServer) GetTenants(c *gin.Context) {
 }
 
 // GetTenant
-// @Summary Get a tenant spec/status
-// @Param   id path string true "either name or uuid of the tenant"
+// @Summary Get a tenant's spec/status
+// @Param   id path string true "Either the Name or UUID of the Tenant"
 // @Tags    Tenant and Partition Management System
 // @Accept  json
 // @Produce json
-// @Success 200 {object} ResponseOk
+// @Success 200 {object} v1alpha1.Tenant
 // @Failure 400 {object} ResponseError
 // @Failure 404 {object} ResponseError
 // @Failure 500 {object} ResponseError

@@ -27,7 +27,7 @@
 swag fmt
 
 # update swagger doc yaml
-swag init --md  docs/ --outputTypes go,yaml --exclude api/v1alpha1
+swag init --md  docs/ --outputTypes yaml,go
 
 # fix copyright headers
 docker run -it --rm -v $(pwd):/github/workspace artifactory.algol60.net/csm-docker/stable/license-checker --fix docs
