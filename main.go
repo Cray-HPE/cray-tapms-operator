@@ -27,6 +27,8 @@
 // @title       TAPMS Tenant Status API
 // @version     v1alpha1
 // @description Read-Only APIs to Retrieve Tenant Status
+// @host        cray-tapms
+// @BasePath    /apis/tapms/
 
 package main
 

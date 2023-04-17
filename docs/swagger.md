@@ -3,7 +3,23 @@ Read-Only APIs to Retrieve Tenant Status
 
 ## Version: v1alpha1
 
-### /apis/tapms/v1/tenant/{id}
+### /v1/tenants
+
+#### GET
+##### Summary
+
+Get list of tenants' spec/status
+
+##### Responses
+
+| Code | Description | Schema |
+| ---- | ----------- | ------ |
+| 200 | OK | [ [Tenant](#tenant) ] |
+| 400 | Bad Request | [ResponseError](#responseerror) |
+| 404 | Not Found | [ResponseError](#responseerror) |
+| 500 | Internal Server Error | [ResponseError](#responseerror) |
+
+### /v1/tenants/{id}
 
 #### GET
 ##### Summary
@@ -21,22 +37,6 @@ Get a tenant's spec/status
 | Code | Description | Schema |
 | ---- | ----------- | ------ |
 | 200 | OK | [Tenant](#tenant) |
-| 400 | Bad Request | [ResponseError](#responseerror) |
-| 404 | Not Found | [ResponseError](#responseerror) |
-| 500 | Internal Server Error | [ResponseError](#responseerror) |
-
-### /apis/tapms/v1/tenants
-
-#### GET
-##### Summary
-
-Get list of tenants' spec/status
-
-##### Responses
-
-| Code | Description | Schema |
-| ---- | ----------- | ------ |
-| 200 | OK | [ [Tenant](#tenant) ] |
 | 400 | Bad Request | [ResponseError](#responseerror) |
 | 404 | Not Found | [ResponseError](#responseerror) |
 | 500 | Internal Server Error | [ResponseError](#responseerror) |
