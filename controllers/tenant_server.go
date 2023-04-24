@@ -71,8 +71,8 @@ func (r *TenantServer) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 func (r *TenantServer) initRoutes() {
 	router := gin.Default()
-	router.GET("/apis/tapms/v1/tenants", r.GetTenants)
-	router.GET("/apis/tapms/v1/tenant/:id", r.GetTenant)
+	router.GET("v1/tenants", r.GetTenants)
+	router.GET("v1/tenants/:id", r.GetTenant)
 	router.NoRoute(r.noRoute)
 	go router.Run(v1.GetServerPort())
 }
@@ -109,7 +109,7 @@ func (r *TenantServer) GetTenantsFromCache(c *gin.Context) (*v1.TenantList, erro
 // @Failure 400 {object} ResponseError
 // @Failure 404 {object} ResponseError
 // @Failure 500 {object} ResponseError
-// @Router  /apis/tapms/v1/tenants [get]
+// @Router  /v1/tenants [get]
 func (r *TenantServer) GetTenants(c *gin.Context) {
 	tenantList, err := r.GetTenantsFromCache(c)
 	if err != nil {
@@ -129,7 +129,7 @@ func (r *TenantServer) GetTenants(c *gin.Context) {
 // @Failure 400 {object} ResponseError
 // @Failure 404 {object} ResponseError
 // @Failure 500 {object} ResponseError
-// @Router  /apis/tapms/v1/tenant/{id} [get]
+// @Router  /v1/tenants/{id} [get]
 func (r *TenantServer) GetTenant(c *gin.Context) {
 	id := c.Param("id")
 	tenantList, err := r.GetTenantsFromCache(c)

@@ -46,7 +46,7 @@ import (
 
 var (
 	apiGateway = getEnvVal("API_GATEWAY", "api-gw-service-nmn.local")
-	serverPort = getEnvVal("SERVER_PORT", "2875")
+	serverPort = getEnvVal("SERVER_PORT", "80")
 )
 
 func NewHttpClient() *http.Client {
