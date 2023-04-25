@@ -55,6 +55,11 @@ type KeycloakGroup struct {
 	Id   string `json:"id,omitempty"`
 }
 
+type KeycloakRole struct {
+	Name string `json:"name,omitempty"`
+	Id   string `json:"id,omitempty"`
+}
+
 func listKeycloakGroups(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, []KeycloakGroup, error) {
 
 	result, token, err := GetToken(ctx, log, true)
@@ -86,7 +91,6 @@ func listKeycloakGroups(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		log.Info("Created Keycloak group: " + getKeycloakGroupName(t.Spec.TenantName))
 		return ctrl.Result{}, nil, errors.New("keycloak returned a non-200 response listing groups")
 	}
 
@@ -98,6 +102,130 @@ func listKeycloakGroups(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 	}
 
 	return ctrl.Result{}, keycloakGroupList, nil
+
+}
+
+func listKeycloakRealmRoles(ctx context.Context, log logr.Logger, roleName string) (ctrl.Result, []KeycloakRole, error) {
+
+	result, token, err := GetToken(ctx, log, true)
+	if err != nil {
+		return result, nil, err
+	}
+
+	keycloakUrl := fmt.Sprintf("%s/admin/realms/shasta/roles?name=%s", getKeycloakBase(), roleName)
+
+	keycloakRole := KeycloakRole{}
+	keycloakRoleBytes, err := json.Marshal(keycloakRole)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+	req, err := http.NewRequest(http.MethodGet, keycloakUrl, bytes.NewBuffer(keycloakRoleBytes))
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return ctrl.Result{}, nil, errors.New("keycloak returned a non-200 response listing groups")
+	}
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	var keycloakRoleList []KeycloakRole
+	err = json.Unmarshal(body, &keycloakRoleList)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+
+	return ctrl.Result{}, keycloakRoleList, nil
+}
+
+func getRoleId(ctx context.Context, log logr.Logger, roleName string) string {
+	var roleId string
+	_, roleList, err := listKeycloakRealmRoles(ctx, log, roleName)
+	if err != nil {
+		log.Error(err, fmt.Sprintf("Failed to get roleid for keycloak role: %s", roleName))
+		return roleId
+	}
+
+	for _, role := range roleList {
+		if role.Name == roleName {
+			roleId = role.Id
+			break
+		}
+	}
+	return roleId
+}
+
+func getGroupId(ctx context.Context, log logr.Logger, t *Tenant) string {
+	var groupId string
+	_, groupList, err := listKeycloakGroups(ctx, log, t)
+	if err != nil {
+		log.Error(err, fmt.Sprintf("Failed to get groupid for keycloak group: %s", getKeycloakGroupName(t.Spec.TenantName)))
+		return groupId
+	}
+
+	for _, group := range groupList {
+		if group.Name == getKeycloakGroupName(t.Spec.TenantName) {
+			groupId = group.Id
+			break
+		}
+	}
+	return groupId
+}
+
+func AssignRoleToGroup(ctx context.Context, log logr.Logger, t *Tenant, roleName string, token string) (ctrl.Result, error) {
+
+	log.Info(fmt.Sprintf("Ensuring Keycloak realm role (%s) is assigned to Keycloak group: %s", roleName, getKeycloakGroupName(t.Spec.TenantName)))
+
+	groupId := getGroupId(ctx, log, t)
+	if len(groupId) <= 0 {
+		log.Info(fmt.Sprintf("Failed to get groupID assigning realm role (%s) to Keycloak group: %s", roleName, getKeycloakGroupName(t.Spec.TenantName)))
+		return ctrl.Result{}, nil
+	}
+
+	roleId := getRoleId(ctx, log, roleName)
+	if len(roleId) <= 0 {
+		log.Info(fmt.Sprintf("Failed to get roleID assigning realm role (%s) to Keycloak group: %s", roleName, getKeycloakGroupName(t.Spec.TenantName)))
+		return ctrl.Result{}, nil
+	}
+
+	keycloakUrl := fmt.Sprintf("%s/admin/realms/shasta/groups/%s/role-mappings/realm", getKeycloakBase(), groupId)
+	result, keycloakRoleBytes, err := buildKeycloakRolePayload(log, roleName, roleId)
+	if err != nil {
+		return result, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, keycloakUrl, bytes.NewBuffer(keycloakRoleBytes))
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		log.Info(fmt.Sprintf("Assigned Keycloak realm role (%s) to Keycloak group: %s", roleName, getKeycloakGroupName(t.Spec.TenantName)))
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, fmt.Errorf("keycloak returned a non-200 response assigning %s role", roleName)
 
 }
 
@@ -144,6 +272,10 @@ func UpdateKeycloakGroup(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 		log.Info("Created Keycloak group: " + getKeycloakGroupName(t.Spec.TenantName))
+		result, err = AssignRoleToGroup(ctx, log, t, "tenant-admin", token)
+		if err != nil {
+			return result, err
+		}
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, errors.New("keycloak returned a non-200 response creating/updating group")
@@ -151,18 +283,7 @@ func UpdateKeycloakGroup(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.
 
 func DeleteKeycloakGroup(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
 
-	result, groupList, err := listKeycloakGroups(ctx, log, t)
-	if err != nil {
-		return result, err
-	}
-
-	var groupId string
-	for _, group := range groupList {
-		if group.Name == getKeycloakGroupName(t.Spec.TenantName) {
-			groupId = group.Id
-			break
-		}
-	}
+	groupId := getGroupId(ctx, log, t)
 
 	if len(groupId) <= 0 {
 		log.Info("Keycloak group already deleted: " + getKeycloakGroupName(t.Spec.TenantName))
@@ -238,6 +359,19 @@ func GetToken(ctx context.Context, log logr.Logger, masterAuth bool) (ctrl.Resul
 	var result map[string]string
 	json.NewDecoder(resp.Body).Decode(&result)
 	return ctrl.Result{}, result["access_token"], nil
+
+}
+func buildKeycloakRolePayload(log logr.Logger, roleName string, roleId string) (ctrl.Result, []byte, error) {
+
+	keycloakRole := KeycloakRole{}
+	keycloakRole.Name = roleName
+	keycloakRole.Id = roleId
+	roles := []KeycloakRole{keycloakRole}
+	keycloakRoleBytes, err := json.Marshal(roles)
+	if err != nil {
+		return ctrl.Result{}, nil, err
+	}
+	return ctrl.Result{}, keycloakRoleBytes, err
 }
 
 func buildKeycloakGroupPayload(log logr.Logger, t *Tenant) (ctrl.Result, []byte, error) {
