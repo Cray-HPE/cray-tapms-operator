@@ -137,15 +137,10 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
-		for _, resource := range tenant.Spec.TenantResources {
-			if len(resource.HsmGroupLabel) > 0 {
-				log.Info(fmt.Sprintf("Creating/updating HSM group for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
-				result, err := v1.UpdateHSMGroup(ctx, log, tenant, resource.HsmGroupLabel, resource.Xnames, resource.EnforceExclusiveHsmGroups)
-				if err != nil {
-					log.Error(err, "Failed to create/update HSM group")
-					return result, err
-				}
-			}
+		result, err = v1.DetermineHSMGroupChanges(ctx, log, tenant)
+		if err != nil {
+			log.Error(err, "Failed to create/update HSM group")
+			return result, err
 		}
 
 		log.Info("Creating/updating Keycloak Group for: " + tenant.Spec.TenantName)
@@ -169,14 +164,21 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		if v1.TenantIsUpdated(tenant) {
 			log.Info("Updating tenant status")
-			tenant.Status.TenantResources = tenant.Spec.TenantResources
-			tenant.Status.ChildNamespaces = v1.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
-			err = r.Status().Update(ctx, tenant)
+			//
+			// Grab a fresh copy of the tenant to ensure we have
+			// the latest resource version id, as the above API calls
+			// can take a while.
+			//
+			freshTenant := &v1.Tenant{}
+			r.Get(ctx, req.NamespacedName, freshTenant)
+			freshTenant.Status.TenantResources = tenant.Spec.TenantResources
+			freshTenant.Status.ChildNamespaces = v1.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
+			err = r.Status().Update(ctx, freshTenant)
 			if err != nil {
 				log.Error(err, "Failed to update final tenant status")
 				return ctrl.Result{}, err
 			}
-			err = r.Update(ctx, tenant)
+			err = r.Update(ctx, freshTenant)
 			if err != nil {
 				log.Error(err, "Failed to update tenant resource")
 				return ctrl.Result{}, err
