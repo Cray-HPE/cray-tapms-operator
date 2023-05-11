@@ -81,10 +81,17 @@ func (t *Tenant) ValidateCreate() error {
 				return err
 			}
 
-			err = t.ValidateExclusiveGroupMembership(specResource.Xnames, specResource.HsmGroupLabel, specResource.EnforceExclusiveHsmGroups)
+		}
+		if specResource.Type == "application" {
+			err := t.ValidateNodeTypeForXnames(specResource.Xnames, "Node", "Application")
 			if err != nil {
 				return err
 			}
+
+		}
+		err := t.ValidateExclusiveGroupMembership(specResource.Xnames, specResource.HsmGroupLabel, specResource.EnforceExclusiveHsmGroups)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -101,10 +108,18 @@ func (t *Tenant) ValidateUpdate(old runtime.Object) error {
 				return err
 			}
 
-			err = t.ValidateExclusiveGroupMembership(specResource.Xnames, specResource.HsmGroupLabel, specResource.EnforceExclusiveHsmGroups)
+		}
+		if specResource.Type == "application" {
+			err := t.ValidateNodeTypeForXnames(specResource.Xnames, "Node", "Application")
 			if err != nil {
 				return err
 			}
+
+		}
+
+		err := t.ValidateExclusiveGroupMembership(specResource.Xnames, specResource.HsmGroupLabel, specResource.EnforceExclusiveHsmGroups)
+		if err != nil {
+			return err
 		}
 
 		for _, statusResource := range t.Status.TenantResources {

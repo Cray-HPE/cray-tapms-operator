@@ -166,7 +166,47 @@ func ListHSMPartitions(ctx context.Context, log logr.Logger) (ctrl.Result, []Hsm
 	return ctrl.Result{}, hsmPartitionList, nil
 }
 
-func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *Tenant, hsmGroupLabel string, xnames []string, enforceExclusiveHsmGroups bool) (ctrl.Result, error) {
+func DetermineHSMGroupChanges(ctx context.Context, log logr.Logger, tenant *Tenant) (ctrl.Result, error) {
+	//
+	// First loop handles simple xname add/deletion from existing
+	// resource (compute/application) or initial HSM group creation.
+	//
+	for _, resource := range tenant.Spec.TenantResources {
+		if len(resource.HsmGroupLabel) > 0 {
+			log.Info(fmt.Sprintf("Creating/updating HSM group for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
+			result, err := updateHSMGroup(ctx, log, tenant, resource)
+			if err != nil {
+				log.Error(err, "Failed to create/update HSM group")
+				return result, err
+			}
+		}
+	}
+
+	//
+	// Second loop handles case where a resource group is removed.
+	//
+	for _, statResource := range tenant.Status.TenantResources {
+		haveSpec := false
+		if len(statResource.HsmGroupLabel) > 0 {
+			for _, resource := range tenant.Spec.TenantResources {
+				if statResource.Type == resource.Type {
+					haveSpec = true
+				}
+			}
+		}
+		if !haveSpec {
+			result, err := editHsmGroupMembers(ctx, log, tenant.Name, statResource.HsmGroupLabel, statResource.Xnames, http.MethodDelete, statResource.EnforceExclusiveHsmGroups)
+			if err != nil {
+				log.Error(err, "Failed to delete HSM group members")
+				return result, err
+			}
+		}
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func updateHSMGroup(ctx context.Context, log logr.Logger, t *Tenant, resource TenantResource) (ctrl.Result, error) {
 
 	result, groupList, err := ListHSMGroups(ctx, log)
 	if err != nil {
@@ -175,7 +215,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *Tenant, hsmGroupLab
 
 	existingGroup := false
 	for _, group := range groupList {
-		if group.Label == hsmGroupLabel {
+		if group.Label == resource.HsmGroupLabel {
 			existingGroup = true
 			break
 		}
@@ -185,7 +225,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *Tenant, hsmGroupLab
 		//
 		// create the group
 		//
-		result, err := createHSMGroup(ctx, log, t.Name, hsmGroupLabel, xnames, enforceExclusiveHsmGroups)
+		result, err := createHSMGroup(ctx, log, t.Name, resource.HsmGroupLabel, resource.Xnames, resource.EnforceExclusiveHsmGroups)
 		if err != nil {
 			return result, err
 		}
@@ -194,25 +234,42 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *Tenant, hsmGroupLab
 		//
 		// Check for any changes to update in the group
 		//
-		for _, specResource := range t.Spec.TenantResources {
-			for _, statResource := range t.Status.TenantResources {
-				if (statResource.Type == specResource.Type) && (specResource.HsmGroupLabel == hsmGroupLabel) {
-					log.Info(fmt.Sprintf("Checking for members deleted from HSM group %s", hsmGroupLabel))
-					deletedMembers := Difference(statResource.Xnames, specResource.Xnames)
-					result, err := editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, deletedMembers, http.MethodDelete, enforceExclusiveHsmGroups)
-					if err != nil {
-						log.Error(err, "Failed to delete HSM group members")
-						return result, err
-					}
+		for _, statResource := range t.Status.TenantResources {
+			if statResource.Type == resource.Type {
+				log.Info(fmt.Sprintf("Checking for members deleted from HSM group %s and type %s", resource.HsmGroupLabel, resource.Type))
+				deletedMembers := Difference(statResource.Xnames, resource.Xnames)
+				result, err := editHsmGroupMembers(ctx, log, t.Name, resource.HsmGroupLabel, deletedMembers, http.MethodDelete, resource.EnforceExclusiveHsmGroups)
+				if err != nil {
+					log.Error(err, "Failed to delete HSM group members")
+					return result, err
+				}
+				log.Info(fmt.Sprintf("Checking for members added from HSM group %s and type %s", resource.HsmGroupLabel, resource.Type))
+				addedMembers := Difference(resource.Xnames, statResource.Xnames)
+				result, err = editHsmGroupMembers(ctx, log, t.Name, resource.HsmGroupLabel, addedMembers, http.MethodPost, resource.EnforceExclusiveHsmGroups)
+				if err != nil {
+					log.Error(err, "Failed to add HSM group members")
+					return result, err
 				}
 			}
 		}
+
+		//
+		// Handles case where a resource group is added after the
+		// HSM group is created.
+		//
 		for _, specResource := range t.Spec.TenantResources {
-			for _, statResource := range t.Status.TenantResources {
-				if (statResource.Type == specResource.Type) && (specResource.HsmGroupLabel == hsmGroupLabel) {
-					log.Info(fmt.Sprintf("Checking for members added to HSM group %s", hsmGroupLabel))
-					addedMembers := Difference(specResource.Xnames, statResource.Xnames)
-					result, err = editHsmGroupMembers(ctx, log, t.Name, hsmGroupLabel, addedMembers, http.MethodPost, enforceExclusiveHsmGroups)
+			if specResource.Type != resource.Type {
+				continue
+			}
+			if len(specResource.HsmGroupLabel) > 0 {
+				haveStatus := false
+				for _, statResource := range t.Status.TenantResources {
+					if specResource.Type == statResource.Type {
+						haveStatus = true
+					}
+				}
+				if !haveStatus {
+					result, err := editHsmGroupMembers(ctx, log, t.Name, specResource.HsmGroupLabel, specResource.Xnames, http.MethodPost, specResource.EnforceExclusiveHsmGroups)
 					if err != nil {
 						log.Error(err, "Failed to add HSM group members")
 						return result, err
@@ -221,6 +278,7 @@ func UpdateHSMGroup(ctx context.Context, log logr.Logger, t *Tenant, hsmGroupLab
 			}
 		}
 	}
+
 	return ctrl.Result{}, nil
 }
 

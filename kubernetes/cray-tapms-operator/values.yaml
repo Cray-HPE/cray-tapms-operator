@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -26,9 +26,10 @@ image:
   #
   # Remember to change in conjuction with .version and Chart.yaml:
   #
-  tag: v0.0.14
+  tag: v0.1.0
   pullPolicy: IfNotPresent
 numReplicas: 1
 apiGateway: api-gw-service-nmn.local
 serverPort: 80
 externalHostname: tapms.local
+webhookTimeoutSeconds: 30
