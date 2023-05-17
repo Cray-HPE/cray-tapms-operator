@@ -180,3 +180,20 @@ func TranslateSpecNamespacesForStatus(tenantName string, specNamespaces []string
 
 	return statusNamespaces
 }
+
+func CreateQueryParms(name string, values []string) string {
+	var urlParameters []string
+	for _, value := range values {
+		urlParameters = append(urlParameters, fmt.Sprintf("%s=%s", name, value))
+	}
+	return strings.Join(urlParameters, "&")
+}
+
+func Contains(slice []string, value string) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}

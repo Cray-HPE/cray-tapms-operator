@@ -150,6 +150,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return result, err
 		}
 
+		log.Info(fmt.Sprintf("Ensuring xnames being added or removed from '%s' have been powered off", tenant.Spec.TenantName))
+		result, err = v1.EnsurePowerState(ctx, log, tenant)
+		if err != nil {
+			log.Error(err, "Failed to power off xname(s)")
+			return result, err
+		}
+
 		if !reflect.DeepEqual(v1.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {
 			//
 			// Don't need to add members, that gets handled above in the create loop
