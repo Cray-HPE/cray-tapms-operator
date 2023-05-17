@@ -68,19 +68,24 @@ type PowerTransitionRequest struct {
 }
 
 func EnsurePowerState(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
-	xnamesToPowerOff := make([]string, 0)
 	//
 	// This loop handles case where a resource group is removed.
 	//
 	for _, statResource := range t.Status.TenantResources {
 		haveSpec := false
+		forcePowerOff := false
 		for _, resource := range t.Spec.TenantResources {
 			if statResource.Type == resource.Type {
 				haveSpec = true
+				forcePowerOff = statResource.ForcePowerOff
 			}
 		}
 		if !haveSpec {
-			xnamesToPowerOff = append(xnamesToPowerOff, statResource.Xnames...)
+			result, err := ensureXnamesOff(ctx, log, statResource.Xnames, forcePowerOff)
+			if err != nil {
+				log.Error(err, "Failed to power off xname(s)")
+				return result, err
+			}
 		}
 	}
 
@@ -89,37 +94,44 @@ func EnsurePowerState(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Res
 	//
 	for _, specResource := range t.Spec.TenantResources {
 		haveStatus := false
+		forcePowerOff := false
 		for _, resource := range t.Status.TenantResources {
 			if specResource.Type == resource.Type {
 				haveStatus = true
+				forcePowerOff = specResource.ForcePowerOff
 			}
 		}
 		if !haveStatus {
-			xnamesToPowerOff = append(xnamesToPowerOff, specResource.Xnames...)
-		}
-	}
-
-	for _, specResource := range t.Spec.TenantResources {
-		for _, statResource := range t.Status.TenantResources {
-			if statResource.Type == specResource.Type {
-				log.Info(fmt.Sprintf("Checking for members deleted from HSM partition %s", specResource.HsmPartitionName))
-				deletedMembers := Difference(statResource.Xnames, specResource.Xnames)
-				addedMembers := Difference(specResource.Xnames, statResource.Xnames)
-				xnamesToPowerOff = append(xnamesToPowerOff, deletedMembers...)
-				xnamesToPowerOff = append(xnamesToPowerOff, addedMembers...)
+			result, err := ensureXnamesOff(ctx, log, specResource.Xnames, forcePowerOff)
+			if err != nil {
+				log.Error(err, "Failed to power off xname(s)")
+				return result, err
 			}
 		}
 	}
-	result, err := ensureXnamesOff(ctx, log, xnamesToPowerOff)
-	if err != nil {
-		log.Error(err, "Failed to power off xname(s)")
-		return result, err
+	for _, specResource := range t.Spec.TenantResources {
+		for _, statResource := range t.Status.TenantResources {
+			if statResource.Type == specResource.Type {
+				log.Info(fmt.Sprintf("Checking for members deleted from resource group %s", specResource.Type))
+				deletedMembers := Difference(statResource.Xnames, specResource.Xnames)
+				addedMembers := Difference(specResource.Xnames, statResource.Xnames)
+				xnamesToPowerOff := append(deletedMembers, addedMembers...)
+				log.Info(fmt.Sprintf("deletedMembers: %v", deletedMembers))
+				log.Info(fmt.Sprintf("addedMembers: %v", addedMembers))
+				log.Info(fmt.Sprintf("xnamesToPowerOff: %v", xnamesToPowerOff))
+				result, err := ensureXnamesOff(ctx, log, xnamesToPowerOff, specResource.ForcePowerOff)
+				if err != nil {
+					log.Error(err, "Failed to power off xname(s)")
+					return result, err
+				}
+			}
+		}
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func ensureXnamesOff(ctx context.Context, log logr.Logger, xnames []string) (ctrl.Result, error) {
+func ensureXnamesOff(ctx context.Context, log logr.Logger, xnames []string, forcePowerOff bool) (ctrl.Result, error) {
 	if len(xnames) == 0 {
 		return ctrl.Result{}, nil
 	}
@@ -141,7 +153,7 @@ func ensureXnamesOff(ctx context.Context, log logr.Logger, xnames []string) (ctr
 			xnamesToPowerOff = append(xnamesToPowerOff, state.Xname)
 		}
 	}
-	result, err = powerOffXnames(ctx, log, xnamesToPowerOff)
+	result, err = powerOffXnames(ctx, log, xnamesToPowerOff, forcePowerOff)
 	if err != nil {
 		log.Error(err, "Failed to power off xnames")
 		return result, err
@@ -150,7 +162,7 @@ func ensureXnamesOff(ctx context.Context, log logr.Logger, xnames []string) (ctr
 	return ctrl.Result{}, nil
 }
 
-func powerOffXnames(ctx context.Context, log logr.Logger, xnames []string) (ctrl.Result, error) {
+func powerOffXnames(ctx context.Context, log logr.Logger, xnames []string, forcePowerOff bool) (ctrl.Result, error) {
 
 	if len(xnames) == 0 {
 		return ctrl.Result{}, nil
@@ -160,7 +172,7 @@ func powerOffXnames(ctx context.Context, log logr.Logger, xnames []string) (ctrl
 	if err != nil {
 		return result, err
 	}
-	result, pRequestBytes, err := buildPowerTransitionReqPayload(log, xnames)
+	result, pRequestBytes, err := buildPowerTransitionReqPayload(log, xnames, forcePowerOff)
 	if err != nil {
 		return result, err
 	}
@@ -235,10 +247,15 @@ func getPowerStatus(ctx context.Context, log logr.Logger, xnames []string) (ctrl
 	return ctrl.Result{}, &status, nil
 }
 
-func buildPowerTransitionReqPayload(log logr.Logger, xnames []string) (ctrl.Result, []byte, error) {
+func buildPowerTransitionReqPayload(log logr.Logger, xnames []string, forcePowerOff bool) (ctrl.Result, []byte, error) {
 
 	pRequest := PowerTransitionRequest{}
-	pRequest.Operation = "off"
+	if forcePowerOff {
+		pRequest.Operation = "force-off"
+	} else {
+
+		pRequest.Operation = "off"
+	}
 	pRequest.TaskDeadlineMinutes = 0
 	for _, xname := range xnames {
 		location := PowerTransitionLocation{}

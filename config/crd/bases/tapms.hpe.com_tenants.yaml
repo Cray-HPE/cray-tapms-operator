@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2023 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -41,7 +41,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Tenant is the Schema for the tenants API
+        description: '@Description The primary schema/definition of a tenant'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -56,7 +56,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: TenantSpec defines the desired state of Tenant
+            description: The desired state of Tenant
             properties:
               childnamespaces:
                 items:
@@ -67,7 +67,9 @@ spec:
               tenantname:
                 type: string
               tenantresources:
+                description: The desired resources for the Tenant
                 items:
+                  description: '@Description The desired resources for the Tenant'
                   properties:
                     enforceexclusivehsmgroups:
                       type: boolean
@@ -76,8 +78,6 @@ spec:
                     hsmpartitionname:
                       type: string
                     type:
-                      maxLength: 255
-                      minLength: 1
                       type: string
                     xnames:
                       items:
@@ -91,18 +91,21 @@ spec:
                 type: array
             required:
             - childnamespaces
+            - state
             - tenantname
             - tenantresources
             type: object
           status:
-            description: TenantStatus defines the observed state of Tenant
+            description: The observed state of Tenant
             properties:
               childnamespaces:
                 items:
                   type: string
                 type: array
               tenantresources:
+                description: The desired resources for the Tenant
                 items:
+                  description: '@Description The desired resources for the Tenant'
                   properties:
                     enforceexclusivehsmgroups:
                       type: boolean
@@ -111,8 +114,6 @@ spec:
                     hsmpartitionname:
                       type: string
                     type:
-                      maxLength: 255
-                      minLength: 1
                       type: string
                     xnames:
                       items:
@@ -120,6 +121,107 @@ spec:
                       type: array
                   required:
                   - enforceexclusivehsmgroups
+                  - type
+                  - xnames
+                  type: object
+                type: array
+              uuid:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - name: v1alpha2
+    schema:
+      openAPIV3Schema:
+        description: '@Description The primary schema/definition of a tenant'
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: The desired state of Tenant
+            properties:
+              childnamespaces:
+                items:
+                  type: string
+                type: array
+              state:
+                type: string
+              tenantname:
+                type: string
+              tenantresources:
+                description: The desired resources for the Tenant
+                items:
+                  description: '@Description The desired resources for the Tenant'
+                  properties:
+                    enforceexclusivehsmgroups:
+                      type: boolean
+                    forcepoweroff:
+                      type: boolean
+                    hsmgrouplabel:
+                      type: string
+                    hsmpartitionname:
+                      type: string
+                    type:
+                      type: string
+                    xnames:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - enforceexclusivehsmgroups
+                  - forcepoweroff
+                  - type
+                  - xnames
+                  type: object
+                type: array
+            required:
+            - childnamespaces
+            - state
+            - tenantname
+            - tenantresources
+            type: object
+          status:
+            description: The observed state of Tenant
+            properties:
+              childnamespaces:
+                items:
+                  type: string
+                type: array
+              tenantresources:
+                description: The desired resources for the Tenant
+                items:
+                  description: '@Description The desired resources for the Tenant'
+                  properties:
+                    enforceexclusivehsmgroups:
+                      type: boolean
+                    forcepoweroff:
+                      type: boolean
+                    hsmgrouplabel:
+                      type: string
+                    hsmpartitionname:
+                      type: string
+                    type:
+                      type: string
+                    xnames:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - enforceexclusivehsmgroups
+                  - forcepoweroff
                   - type
                   - xnames
                   type: object

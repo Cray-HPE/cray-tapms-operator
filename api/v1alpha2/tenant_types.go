@@ -52,6 +52,7 @@ type TenantResource struct {
 	HsmPartitionName          string   `json:"hsmpartitionname,omitempty" example:"blue"`
 	HsmGroupLabel             string   `json:"hsmgrouplabel,omitempty" example:"green"`
 	EnforceExclusiveHsmGroups bool     `json:"enforceexclusivehsmgroups"`
+	ForcePowerOff             bool     `json:"forcepoweroff"`
 } // @name TenantResource
 
 // @Description The desired state of Tenant
@@ -71,8 +72,10 @@ type TenantStatus struct {
 	UUID            string           `json:"uuid,omitempty" example:"550e8400-e29b-41d4-a716-446655440000" format:"uuid"`
 } // @name TenantStatus
 
+//+k8s:openapi-gen=true
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:storageversion
 
 // @Description The primary schema/definition of a tenant
 type Tenant struct {
