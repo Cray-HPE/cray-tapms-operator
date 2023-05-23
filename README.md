@@ -61,3 +61,14 @@ CSM NCNs are deployed with the `kubectl-hns` plugin, and as such when logged int
    scripts/swagger.gen.sh
    ```
    > Note: This script will try to update `docs/swagger.md` if nodejs is installed. Otherwise, it will only update `docs/swagger.yaml`.  [NodeJS](https://nodejs.org/en/download/) is required for markdown version of swagger doc.
+
+## Changing CRD/API version notes
+
+Below are the developer steps for altering the Tenant CRD and API version, see (Kubernetes Changing the API)[https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api_changes.md]:
+
+1. First copy apis/&lt;existing-version&gt; to apis/&lt;new-version&gt;.
+1. Rename &lt;existing-version&gt; to &lt;new-version&gt; in the new files.
+1. Make code changes necessary for &lt;new-version&gt;.
+1. Bump appropriate chart/docker versions.
+1. Generate files by running make manifests/schema (CRD gets generated).
+1. Run 'make charts' to ensure the charts build and the new CRD moves to kubernetes/cray-tapms-crd/files.

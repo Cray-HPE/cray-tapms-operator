@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.0.1
+DOCKER_VERSION ?= 0.0.1
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -56,7 +56,7 @@ IMAGE_TAG_BASE ?= hpe.com/cray-tapms-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
-BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
+BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(DOCKER_VERSION)
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -116,27 +116,30 @@ vet: ## Run go vet against code.
 
 # Chart args
 CHART_PATH ?= kubernetes
-NAME = cray-tapms-operator
-CHART_VERSION ?= local
 HELM_UNITTEST_IMAGE ?= quintush/helm-unittest:3.3.0-0.2.5
+OPERATOR_CHART_VERSION ?= 0.0.1
+OPERATOR_CHART_NAME = cray-tapms-operator
+CRD_CHART_VERSION ?= 0.0.1
+CRD_CHART_NAME = cray-tapms-crd
 
 image:
-	docker build --pull ${DOCKER_ARGS} --tag '${NAME}:${VERSION}' .
+	docker build --pull ${DOCKER_ARGS} --tag '${OPERATOR_CHART_NAME}:${DOCKER_VERSION}' .
 
 chart: chart_setup chart_package chart_test
 
 chart_setup:
 	mkdir -p ${CHART_PATH}/.packaged
-	cp config/crd/bases/tapms.hpe.com_tenants.yaml ${CHART_PATH}/${NAME}/crds
+	cp config/crd/bases/tapms.hpe.com_tenants.yaml ${CHART_PATH}/${CRD_CHART_NAME}/files
 
 chart_package:
-	echo "appVersion: ${VERSION}" >> ${CHART_PATH}/${NAME}/Chart.yaml
-	helm dep up ${CHART_PATH}/${NAME}
-	helm package ${CHART_PATH}/${NAME} -d ${CHART_PATH}/.packaged --version ${CHART_VERSION}
+	echo "appVersion: ${OPERATOR_CHART_VERSION}" >> ${CHART_PATH}/${OPERATOR_CHART_NAME}/Chart.yaml
+	helm dep up ${CHART_PATH}/${OPERATOR_CHART_NAME}
+	helm package ${CHART_PATH}/${OPERATOR_CHART_NAME} -d ${CHART_PATH}/.packaged --version ${OPERATOR_CHART_VERSION}
+	helm package ${CHART_PATH}/${CRD_CHART_NAME} -d ${CHART_PATH}/.packaged --version ${CRD_CHART_VERSION}
 
 chart_test:
-	helm lint "${CHART_PATH}/${NAME}"
-	docker run --rm -v ${PWD}/${CHART_PATH}:/apps ${HELM_UNITTEST_IMAGE} -3 ${NAME}
+	helm lint "${CHART_PATH}/${OPERATOR_CHART_NAME}"
+	docker run --rm -v ${PWD}/${CHART_PATH}:/apps ${HELM_UNITTEST_IMAGE} -3 ${OPERATOR_CHART_NAME}
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
@@ -216,7 +219,7 @@ endef
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(OPERATOR_CHART_VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
@@ -249,7 +252,7 @@ endif
 BUNDLE_IMGS ?= $(BUNDLE_IMG)
 
 # The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(OPERATOR_CHART_VERSION)
 
 # Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
 ifneq ($(origin CATALOG_BASE_IMG), undefined)

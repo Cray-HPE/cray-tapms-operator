@@ -114,7 +114,7 @@ info:
   contact: {}
   description: Read-Only APIs to Retrieve Tenant Status
   title: TAPMS Tenant Status API
-  version: v1alpha1
+  version: v1alpha2
 paths:
   /v1/tenants:
     get:

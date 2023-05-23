@@ -182,14 +182,12 @@ spec:
                       type: array
                   required:
                   - enforceexclusivehsmgroups
-                  - forcepoweroff
                   - type
                   - xnames
                   type: object
                 type: array
             required:
             - childnamespaces
-            - state
             - tenantname
             - tenantresources
             type: object
@@ -221,7 +219,6 @@ spec:
                       type: array
                   required:
                   - enforceexclusivehsmgroups
-                  - forcepoweroff
                   - type
                   - xnames
                   type: object
