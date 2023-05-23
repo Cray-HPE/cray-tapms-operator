@@ -183,6 +183,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
+		log.Info("Creating/updating Vault transit for: " + tenant.Spec.TenantName)
+		result, err = v1.CreateVaultTransit(ctx, log, tenant)
+		if err != nil {
+			log.Error(err, "Failed to create/update Vault transit")
+			return result, err
+		}
+
 	} else {
 		tenant.Spec.State = "Deleting"
 		err = r.Update(ctx, tenant)
@@ -330,6 +337,13 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	result, err = v1.DeleteKeycloakGroup(ctx, log, t)
 	if err != nil {
 		log.Error(err, "Failed to delete Keycloak group")
+		return result, err
+	}
+
+	log.Info("Deleting Vault transit for: " + t.Spec.TenantName)
+	result, err = v1.DeleteVaultTransit(ctx, log, t)
+	if err != nil {
+		log.Error(err, "Failed to delete Vault transit")
 		return result, err
 	}
 
