@@ -27,6 +27,7 @@
 package v1alpha1
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -36,6 +37,8 @@ import (
 
 	vault "github.com/hashicorp/vault/api"
 	auth "github.com/hashicorp/vault/api/auth/kubernetes"
+
+	uuid "github.com/google/uuid"
 )
 
 // TODO: The definitions below will need to be configurable by the site. For now,
@@ -58,6 +61,14 @@ var tapms_transit_default_key_name = "key1"
 // See https://developer.hashicorp.com/vault/api-docs/secret/transit
 var tapms_transit_default_key_type = "rsa-2048"
 
+func engineKeyValuePairs(m map[string]interface{}) string {
+	b := new(bytes.Buffer)
+	for key, value := range m {
+		fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
+	}
+	return b.String()
+}
+
 // Create the tenant Vault transit engine
 func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
 	fmt.Println("CreateVaultTransit called")
@@ -70,15 +81,20 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	// TODO: Lookup the tenant transit name. Where is that stored?
+	// It will be of the form cray-tenant-$uuid
+	// If not found in our record, just create it. If found, check to see if it exists in Vault
+	// and if not, create it.
+
 	// Check for the transit engine. Create if it does not exist.
-	engine_name := fmt.Sprintf("%s%s", tapms_transit_prefix, t.Spec.TenantName)
+	engine_name := fmt.Sprintf("%s%s", tapms_transit_prefix t.Spec.TenantName, uuid.NewString())
 	// This should be the same as calling "vault read sys/mounts/cray-tenant-<name>"
 	// The mount point is used when creating or retrieving the transit engine.
 	transit_mount_point := fmt.Sprintf("sys/mounts/%s", engine_name)
 	log.Info(fmt.Sprintf("Looking for Vault transit engine by name (%s) at location (%s).", engine_name, transit_mount_point))
 
 	// Create the transit engine if not found
-	_, err = client.Logical().Read(transit_mount_point)
+	engine, err := client.Logical().Read(transit_mount_point)
 	if err != nil {
 		// This actually returns an error when the engine is not found.
 		// When this happens, the error message will contain:
@@ -100,12 +116,15 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				// We had an issue creating the engine.
 				return ctrl.Result{}, err
 			}
+
+			// TODO: save the transit engine name into k8s. Where? How? 
 		} else {
 			// We had some other type of error.
 			return ctrl.Result{}, err
 		}
 	} else {
 		log.Info(fmt.Sprintf("Found existing Vault transit engine by name (%s).", engine_name))
+		log.Info(fmt.Sprintf("DEBUG engine.Data (%s).", engineKeyValuePairs(engine.Data)))
 	}
 
 	// Check that we can find the engine. It should exist or have been created at this point.
@@ -158,15 +177,33 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 
 // Delete the tenant Vault transit engine
 func DeleteVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
-	fmt.Println("DeleteVaultTransit called")
 	log.Info(fmt.Sprintf("DeleteVaultTransit called for tenant (%s)", t.Spec.TenantName))
 
 	// Get Vault client
-	_, err := GetVaultClient(log)
+	client, err := GetVaultClient(log)
 	if err != nil {
 		// Failed to get Vault token
 		return ctrl.Result{}, err
 	}
+	// Check for the transit engine. Create if it does not exist.
+	engine_name := fmt.Sprintf("%s%s", tapms_transit_prefix, t.Spec.TenantName)
+	transit_mount_point := fmt.Sprintf("sys/mounts/%s", engine_name)
+	log.Info(fmt.Sprintf("Looking for Vault transit engine by name (%s) at location (%s).", engine_name, transit_mount_point))
+
+	// Delete the transit engine if found.
+	_, err = client.Logical().Read(transit_mount_point)
+	if err == nil {
+		log.Info(fmt.Sprintf("Deleting Vault transit by name (%s) at the location (%s).", engine_name, transit_mount_point))
+		_, err := client.Logical().Delete(transit_mount_point)
+		if err != nil {
+			// We had an issue creating the engine.
+			return ctrl.Result{}, err
+		}
+	} else {
+		log.Info(fmt.Sprintf("A Vault transit by name (%s) was not found at the location (%s).", engine_name, transit_mount_point))
+	}
+
+	log.Info(fmt.Sprintf("DeleteVaultTransit complete for tenant (%s)", t.Spec.TenantName))
 
 	// On success
 	return ctrl.Result{}, nil
