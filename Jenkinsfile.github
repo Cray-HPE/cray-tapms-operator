@@ -11,12 +11,17 @@ pipeline {
     }
 
     environment {
-        NAME = "cray-tapms-operator"
-        DESCRIPTION = "HPE Tenant and Partition Management Service Operator"
         IS_STABLE = getBuildIsStable()
-        VERSION = getDockerBuildVersion(isStable: env.IS_STABLE)
-        CHART_VERSION = getChartVersion(name: env.NAME, isStable: env.IS_STABLE)
-        DOCKER_ARGS = getDockerBuildArgs(name: env.NAME, description: env.DESCRIPTION)
+        DOCKER_VERSION = getDockerBuildVersion(isStable: env.IS_STABLE)
+
+        OPERATOR_DESCRIPTION = "HPE Tenant and Partition Management Service Operator"
+        OPERATOR_CHART_NAME = "cray-tapms-operator"
+        OPERATOR_CHART_VERSION = getChartVersion(name: env.OPERATOR_CHART_NAME, isStable: env.IS_STABLE)
+        DOCKER_ARGS = getDockerBuildArgs(name: env.OPERATOR_CHART_NAME, description: env.OPERATOR_DESCRIPTION)
+
+        CRD_DESCRIPTION = "HPE Tenant and Partition Management Service CRD Chart"
+        CRD_CHART_NAME = "cray-tapms-crd"
+        CRD_CHART_VERSION = getChartVersion(name: env.CRD_CHART_NAME, isStable: env.IS_STABLE)
     }
 
     stages {
@@ -40,8 +45,9 @@ pipeline {
         stage('Publish') {
             steps {
                 script {
-                    publishCsmDockerImage(image: env.NAME, tag: env.VERSION, isStable: env.IS_STABLE)
-                    publishCsmHelmCharts(component: env.NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
+                    publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
+                    publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
+                    publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
                 }
             }
         }

@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -49,7 +49,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	v1 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
+	alphav2 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha2"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -81,7 +81,7 @@ type TenantReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("tenants", req.NamespacedName)
-	tenant := &v1.Tenant{}
+	tenant := &alphav2.Tenant{}
 	err := r.Get(ctx, req.NamespacedName, tenant)
 
 	if err != nil {
@@ -93,7 +93,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	isTenantMarkedToBeDeleted := tenant.GetDeletionTimestamp() != nil
 	if !isTenantMarkedToBeDeleted {
-		if v1.TenantIsUpdated(tenant) {
+		if alphav2.TenantIsUpdated(tenant) {
 			tenant.Status.UUID = string(tenant.ObjectMeta.UID)
 			err = r.Status().Update(ctx, tenant)
 			if err != nil {
@@ -107,7 +107,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
-		result, err := v1.CreateSubanchorNs(ctx, log, r.Client, "tenants", tenant.Spec.TenantName)
+		result, err := alphav2.CreateSubanchorNs(ctx, log, r.Client, "tenants", tenant.Spec.TenantName)
 		if err != nil {
 			return result, err
 		} else if result.Requeue {
@@ -116,8 +116,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		if tenant.Spec.ChildNamespaces != nil {
 			for _, childNamespace := range tenant.Spec.ChildNamespaces {
-				childNs := v1.GetChildNamespaceName(tenant.Spec.TenantName, childNamespace)
-				result, err := v1.CreateSubanchorNs(ctx, log, r.Client, tenant.Spec.TenantName, childNs)
+				childNs := alphav2.GetChildNamespaceName(tenant.Spec.TenantName, childNamespace)
+				result, err := alphav2.CreateSubanchorNs(ctx, log, r.Client, tenant.Spec.TenantName, childNs)
 				if err != nil {
 					return result, err
 				} else if result.Requeue {
@@ -129,7 +129,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		for _, resource := range tenant.Spec.TenantResources {
 			if len(resource.HsmPartitionName) > 0 {
 				log.Info(fmt.Sprintf("Creating/updating HSM partition for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
-				result, err := v1.UpdateHSMPartition(ctx, log, tenant, resource.HsmPartitionName, resource.Xnames)
+				result, err := alphav2.UpdateHSMPartition(ctx, log, tenant, resource.HsmPartitionName, resource.Xnames)
 				if err != nil {
 					log.Error(err, "Failed to create/update HSM partition")
 					return result, err
@@ -137,42 +137,49 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
-		result, err = v1.DetermineHSMGroupChanges(ctx, log, tenant)
+		result, err = alphav2.DetermineHSMGroupChanges(ctx, log, tenant)
 		if err != nil {
 			log.Error(err, "Failed to create/update HSM group")
 			return result, err
 		}
 
 		log.Info("Creating/updating Keycloak Group for: " + tenant.Spec.TenantName)
-		result, err = v1.UpdateKeycloakGroup(ctx, log, tenant)
+		result, err = alphav2.UpdateKeycloakGroup(ctx, log, tenant)
 		if err != nil {
 			log.Error(err, "Failed to create/update Keycloak Group")
 			return result, err
 		}
 
-		if !reflect.DeepEqual(v1.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {
+		log.Info(fmt.Sprintf("Ensuring xnames being added or removed from '%s' have been powered off", tenant.Spec.TenantName))
+		result, err = alphav2.EnsurePowerState(ctx, log, tenant)
+		if err != nil {
+			log.Error(err, "Failed to power off xname(s)")
+			return result, err
+		}
+
+		if !reflect.DeepEqual(alphav2.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {
 			//
 			// Don't need to add members, that gets handled above in the create loop
 			//
-			deletedChildNamespaces := v1.Difference(v1.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces)
-			v1.DeleteChildNamespaces(ctx, log, r.Client, tenant, deletedChildNamespaces)
+			deletedChildNamespaces := alphav2.Difference(alphav2.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces)
+			alphav2.DeleteChildNamespaces(ctx, log, r.Client, tenant, deletedChildNamespaces)
 			if err != nil {
 				log.Error(err, "Failed to delete child namespaces")
 				return ctrl.Result{}, err
 			}
 		}
 
-		if v1.TenantIsUpdated(tenant) {
+		if alphav2.TenantIsUpdated(tenant) {
 			log.Info("Updating tenant status")
 			//
 			// Grab a fresh copy of the tenant to ensure we have
 			// the latest resource version id, as the above API calls
 			// can take a while.
 			//
-			freshTenant := &v1.Tenant{}
+			freshTenant := &alphav2.Tenant{}
 			r.Get(ctx, req.NamespacedName, freshTenant)
 			freshTenant.Status.TenantResources = tenant.Spec.TenantResources
-			freshTenant.Status.ChildNamespaces = v1.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
+			freshTenant.Status.ChildNamespaces = alphav2.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
 			err = r.Status().Update(ctx, freshTenant)
 			if err != nil {
 				log.Error(err, "Failed to update final tenant status")
@@ -230,7 +237,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	err := ctrl.NewControllerManagedBy(mgr).
-		For(&v1.Tenant{}).
+		For(&alphav2.Tenant{}).
 		Complete(r)
 	if err != nil {
 		return err
@@ -243,7 +250,7 @@ func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, ns := range namespaces {
-		_, err := v1.CreateHierarchyConfigForNs(ctx, r.Log, r.Client, "multi-tenancy", ns)
+		_, err := alphav2.CreateHierarchyConfigForNs(ctx, r.Log, r.Client, "multi-tenancy", ns)
 		if err != nil {
 			r.Log.Error(err, fmt.Sprintf("Failed to creating hierarchy for %s namespace", ns))
 			return err
@@ -252,7 +259,7 @@ func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
 
 	wlm_namespaces := []string{"slurm-operator", "user"}
 	for _, ns := range wlm_namespaces {
-		_, err := v1.PropagateSecret(ctx, r.Log, "default", ns, "wlm-s3-credentials")
+		_, err := alphav2.PropagateSecret(ctx, r.Log, "default", ns, "wlm-s3-credentials")
 		if err != nil {
 			return err
 		}
@@ -271,7 +278,7 @@ func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	_, err = v1.AddObjectPropagation(ctx, r.Log, newClient)
+	_, err = alphav2.AddObjectPropagation(ctx, r.Log, newClient)
 	if err != nil {
 		return err
 	}
@@ -279,11 +286,11 @@ func (r *TenantReconciler) BuildRootTreeStructure(mgr ctrl.Manager) error {
 	return nil
 }
 
-func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, t *v1.Tenant) (ctrl.Result, error) {
+func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, t *alphav2.Tenant) (ctrl.Result, error) {
 	//
 	// First delete the child namespaces/anchors
 	//
-	result, err := v1.DeleteChildNamespaces(ctx, log, r.Client, t, t.Spec.ChildNamespaces)
+	result, err := alphav2.DeleteChildNamespaces(ctx, log, r.Client, t, t.Spec.ChildNamespaces)
 	if err != nil {
 		return result, err
 	}
@@ -292,7 +299,7 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	// Now delete the parent namespace/anchor
 	//
 	log.Info("Deleting parent namespace: " + t.Spec.TenantName)
-	anchor := v1.SubNSAnchorForTenant("tenants", t.Spec.TenantName)
+	anchor := alphav2.SubNSAnchorForTenant("tenants", t.Spec.TenantName)
 	err = r.Client.Delete(ctx, anchor)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -309,7 +316,7 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	for _, resource := range t.Spec.TenantResources {
 		if len(resource.HsmPartitionName) > 0 {
 			log.Info(fmt.Sprintf("Deleting HSM partition %s for tenant %s and resource type %s", resource.HsmPartitionName, t.Spec.TenantName, resource.Type))
-			result, err = v1.DeleteHSMPartition(ctx, log, resource.HsmPartitionName)
+			result, err = alphav2.DeleteHSMPartition(ctx, log, resource.HsmPartitionName)
 			if err != nil {
 				log.Error(err, "Failed to delete HSM partition")
 				return result, err
@@ -320,7 +327,7 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	for _, resource := range t.Spec.TenantResources {
 		if len(resource.HsmGroupLabel) > 0 {
 			log.Info(fmt.Sprintf("Deleting HSM group %s for tenant %s and resource type %s", resource.HsmGroupLabel, t.Spec.TenantName, resource.Type))
-			result, err = v1.DeleteHSMGroup(ctx, log, resource.HsmGroupLabel)
+			result, err = alphav2.DeleteHSMGroup(ctx, log, resource.HsmGroupLabel)
 			if err != nil {
 				log.Error(err, "Failed to delete HSM group")
 				return result, err
@@ -329,7 +336,7 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	}
 
 	log.Info("Deleting Keycloak group for: " + t.Spec.TenantName)
-	result, err = v1.DeleteKeycloakGroup(ctx, log, t)
+	result, err = alphav2.DeleteKeycloakGroup(ctx, log, t)
 	if err != nil {
 		log.Error(err, "Failed to delete Keycloak group")
 		return result, err

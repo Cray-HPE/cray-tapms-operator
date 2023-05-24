@@ -1,7 +1,7 @@
 # TAPMS Tenant Status API
 Read-Only APIs to Retrieve Tenant Status
 
-## Version: v1alpha1
+## Version: v1alpha2
 
 ### /v1/tenants
 
