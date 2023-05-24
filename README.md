@@ -72,3 +72,4 @@ Below are the developer steps for altering the Tenant CRD and API version, see (
 1. Bump appropriate chart/docker versions.
 1. Generate files by running make manifests/schema (CRD gets generated).
 1. Run 'make charts' to ensure the charts build and the new CRD moves to kubernetes/cray-tapms-crd/files.
+1. Run 'scripts/swagger.gen.sh' to update the swagger/openapi spec.
