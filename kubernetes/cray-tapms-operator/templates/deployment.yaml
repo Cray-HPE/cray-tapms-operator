@@ -68,6 +68,9 @@ spec:
           value: "{{ .Values.serverPort }}"
         name: cray-tapms-operator
         ports:
+        - containerPort: 9080
+          name: http
+          protocol: TCP
         - containerPort: 9443
           name: webhook-server
           protocol: TCP

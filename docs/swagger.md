@@ -3,7 +3,7 @@ Read-Only APIs to Retrieve Tenant Status
 
 ## Version: v1alpha2
 
-### /v1/tenants
+### /v1alpha2/tenants
 
 #### GET
 ##### Summary
@@ -19,7 +19,7 @@ Get list of tenants' spec/status
 | 404 | Not Found | [ResponseError](#responseerror) |
 | 500 | Internal Server Error | [ResponseError](#responseerror) |
 
-### /v1/tenants/{id}
+### /v1alpha2/tenants/{id}
 
 #### GET
 ##### Summary
@@ -65,6 +65,7 @@ The desired resources for the Tenant
 | Name | Type | Description | Required |
 | ---- | ---- | ----------- | -------- |
 | enforceexclusivehsmgroups | boolean |  | No |
+| forcepoweroff | boolean |  | No |
 | hsmgrouplabel | string | _Example:_ `"green"` | No |
 | hsmpartitionname | string | _Example:_ `"blue"` | No |
 | type | string | _Example:_ `"compute"` | Yes |
