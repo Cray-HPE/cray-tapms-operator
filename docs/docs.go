@@ -41,7 +41,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/v1/tenants": {
+        "/v1alpha2/tenants": {
             "get": {
                 "consumes": [
                     "application/json"
@@ -84,7 +84,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/tenants/{id}": {
+        "/v1alpha2/tenants/{id}": {
             "get": {
                 "consumes": [
                     "application/json"
@@ -170,6 +170,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "enforceexclusivehsmgroups": {
+                    "type": "boolean"
+                },
+                "forcepoweroff": {
                     "type": "boolean"
                 },
                 "hsmgrouplabel": {

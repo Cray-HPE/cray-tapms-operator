@@ -26,12 +26,11 @@ info:
   title: TAPMS Tenant Status API
   description: Read-Only APIs to Retrieve Tenant Status
   contact: {}
-  version: v1alpha1
+  version: v1alpha2
 servers:
-- url: http://cray-tapms
-  description: The service as exposed through Kubernetes DNS service mapping
+- url: //cray-tapms/apis/tapms/
 paths:
-  /v1/tenants:
+  /v1alpha2/tenants:
     get:
       tags:
       - Tenant and Partition Management System
@@ -63,7 +62,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResponseError'
-  /v1/tenants/{id}:
+  /v1alpha2/tenants/{id}:
     get:
       tags:
       - Tenant and Partition Management System
@@ -125,6 +124,8 @@ components:
       type: object
       properties:
         enforceexclusivehsmgroups:
+          type: boolean
+        forcepoweroff:
           type: boolean
         hsmgrouplabel:
           type: string

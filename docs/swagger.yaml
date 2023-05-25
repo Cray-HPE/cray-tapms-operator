@@ -46,6 +46,8 @@ definitions:
     properties:
       enforceexclusivehsmgroups:
         type: boolean
+      forcepoweroff:
+        type: boolean
       hsmgrouplabel:
         example: green
         type: string
@@ -116,7 +118,7 @@ info:
   title: TAPMS Tenant Status API
   version: v1alpha2
 paths:
-  /v1/tenants:
+  /v1alpha2/tenants:
     get:
       consumes:
       - application/json
@@ -144,7 +146,7 @@ paths:
       summary: Get list of tenants' spec/status
       tags:
       - Tenant and Partition Management System
-  /v1/tenants/{id}:
+  /v1alpha2/tenants/{id}:
     get:
       consumes:
       - application/json
