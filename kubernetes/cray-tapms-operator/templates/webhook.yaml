@@ -48,20 +48,21 @@ webhooks:
     service:
       name: tapms-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /mutate-tapms-hpe-com-v1alpha1-tenant
+      path: /mutate-tapms-hpe-com-v1alpha2-tenant
   failurePolicy: Fail
   name: mtenant.kb.io
   rules:
   - apiGroups:
     - tapms.hpe.com
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
     resources:
     - tenants
   sideEffects: None
+  timeoutSeconds: {{ .Values.webhookTimeoutSeconds }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -77,20 +78,21 @@ webhooks:
     service:
       name: tapms-webhook-service
       namespace: {{ .Release.Namespace }}
-      path: /validate-tapms-hpe-com-v1alpha1-tenant
+      path: /validate-tapms-hpe-com-v1alpha2-tenant
   failurePolicy: Fail
   name: vtenant.kb.io
   rules:
   - apiGroups:
     - tapms.hpe.com
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
     resources:
     - tenants
   sideEffects: None
+  timeoutSeconds: {{ .Values.webhookTimeoutSeconds }}
 ---
 apiVersion: cert-manager.io/v1alpha2
 kind: Certificate

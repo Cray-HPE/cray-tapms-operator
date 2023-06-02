@@ -5,7 +5,8 @@
 *.dll
 *.so
 *.dylib
-bin
+bin/*
+!bin/README.md
 testbin/*
 
 # Test binary, build with `go test -c`

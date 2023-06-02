@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-logr/logr v1.2.0
+	github.com/google/uuid v1.1.2
 	github.com/hashicorp/vault/api v1.9.1
 	github.com/hashicorp/vault/api/auth/kubernetes v0.4.0
 	github.com/onsi/ginkgo v1.16.5
@@ -52,7 +53,6 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
-	github.com/google/uuid v1.1.2 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
