@@ -43,8 +43,8 @@ import (
 // TODO: The definitions below will need to be configurable by the site. For now,
 // they are tracked below.
 
-// The predefined TAPMS Vault role. This defines Vault actions that the client based on
-// the K8s service account will be allowed to perform.
+// The predefined TAPMS Vault role. This defines Vault actions that the client, based on
+// the K8s service account, will be allowed to perform.
 var tapms_vault_role = "tapms-operator"
 
 // The K8s service account token used to perform Vault authentication.
@@ -52,15 +52,6 @@ var k8s_service_account_token_path = "/run/secrets/kubernetes.io/serviceaccount/
 
 // The tanant Vault transit engine name prefix.
 var tapms_transit_prefix = "cray-tenant-"
-
-// The default name of the first Vault transit key used when a new transit engine is created.
-// This now comes from the CRD with a default if not set.
-//var tapms_transit_default_key_name = "key1"
-
-// The default transit engine key algorithm.
-// See https://developer.hashicorp.com/vault/api-docs/secret/transit
-// This now comes from the CRD with a default if not set.
-//var tapms_transit_default_key_type = "rsa-2048"
 
 func engineKeyValuePairs(m map[string]interface{}) string {
 	b := new(bytes.Buffer)
@@ -87,6 +78,8 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		}
 
 		// Get the transit engine key attributes from the specification.
+		// See the tenant_types and the generated CRD for defaults if these are not set.
+		// See https://developer.hashicorp.com/vault/api-docs/secret/transit#type for possible key types.
 		transit_engine_key_name := t.Spec.TenantKmsResource.KeyName
 		transit_engine_key_type := t.Spec.TenantKmsResource.KeyType
 
