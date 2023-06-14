@@ -149,8 +149,10 @@ spec:
                     description: Optional name for the transit engine key.
                     type: string
                   keytype:
-                    default: rsa-2048
+                    default: rsa-3072
                     description: Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+                      The default of 3072 is the minimal permitted under the Commercial
+                      National Security Algorithm (CNSA) 1.0 suite.
                     type: string
                 type: object
               tenantname:
@@ -201,12 +203,16 @@ spec:
                   keytype:
                     description: The Vault transit key type.
                     type: string
+                  publickey:
+                    description: The Vault public key.
+                    type: string
                   transitname:
                     description: The generated Vault transit engine name.
                     type: string
                 required:
                 - keyname
                 - keytype
+                - publickey
                 - transitname
                 type: object
               tenantresources:

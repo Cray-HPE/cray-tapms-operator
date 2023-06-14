@@ -29,6 +29,7 @@ package v1alpha2
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -153,7 +154,6 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		// Check that we can find the engine. It should exist at this point.
 		transit_key_data, err := client.Logical().Read(transit_key_mount_point)
 		if err != nil {
-			//TODO: check the behavior here. Is an error thrown when the key does not exist? If so, detect and handle.
 			return ctrl.Result{}, err
 		}
 
@@ -172,10 +172,32 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			t.Status.TenantKmsStatus.KeyName = transit_engine_key_name
 			t.Status.TenantKmsStatus.KeyType = transit_engine_key_type
 
-			//if key == nil || key.Data["data"] == nil {
-			// What data, if any, are we expecting here? Is this a good check?
-			//	return ctrl.Result{}, fmt.Errorf("Nil transit key or data. Engine: (%s), key: (%s). Unable to continue.", engine_name, tapms_transit_default_key_name)
-			//}
+			// Read the transit key metadata
+			transit_key_data, err = client.Logical().Read(transit_key_mount_point)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if transit_key_data == nil {
+				log.Info(fmt.Sprintf("Nil transit key data for mount point(%s)", transit_key_mount_point))
+				return ctrl.Result{}, err
+			} else {
+				// Display the transit key metadata as json in the k8s tapms status.
+				// Note: to see more detail such as the min/max supported encryption version,
+				// marshal the entire transit_key_data structure. This will be useful when
+				// tenant admins start to work with key rotation. For now, this form will display whatever
+				// data is available for "keys". In this form, if someone had performed key
+				// rotation in Vault, multiple keys will be listed. It will be up to the tenant
+				// admin to know which key to use since any key rotation is outisde of scope of
+				// what tapms is responsible for managing.
+				jsonStr, err := json.Marshal(transit_key_data.Data["keys"])
+				if err != nil {
+					fmt.Printf("Error: %s", err.Error())
+				} else {
+					log.Info(fmt.Sprintf("Transit key data for mount point(%s) is (%s)", transit_key_mount_point, jsonStr))
+					t.Status.TenantKmsStatus.PublicKey = string(jsonStr)
+				}
+			}
+
 		} else {
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
 		}

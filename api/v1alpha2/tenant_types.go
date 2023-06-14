@@ -66,10 +66,10 @@ type TenantKmsResource struct {
 	//+kubebuilder:validation:Optional
 	// Optional name for the transit engine key.
 	KeyName string `json:"keyname"`
-	//+kubebuilder:default:=rsa-2048
+	//+kubebuilder:default:=rsa-3072
 	//+kubebuilder:validation:Optional
-	// Optional key type.
-	//See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+	// Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+	// The default of 3072 is the minimal permitted under the Commercial National Security Algorithm (CNSA) 1.0 suite.
 	KeyType string `json:"keytype"`
 }
 
@@ -81,6 +81,8 @@ type TenantKmsStatus struct {
 	KeyName string `json:"keyname"`
 	// The Vault transit key type.
 	KeyType string `json:"keytype"`
+	// The Vault public key.
+	PublicKey string `json:"publickey"`
 }
 
 // @Description The desired state of Tenant
