@@ -26,7 +26,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
+    controller-gen.kubebuilder.io/version: v0.11.1
   creationTimestamp: null
   name: tenants.tapms.hpe.com
 spec:
@@ -158,6 +158,25 @@ spec:
                 type: array
               state:
                 type: string
+              tenantkms:
+                description: The Vault KMS transit engine specification for the tenant
+                properties:
+                  enablekms:
+                    default: false
+                    description: Create a Vault transit engine for the tenant if this
+                      setting is true.
+                    type: boolean
+                  keyname:
+                    default: key1
+                    description: Optional name for the transit engine key.
+                    type: string
+                  keytype:
+                    default: rsa-3072
+                    description: Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+                      The default of 3072 is the minimal permitted under the Commercial
+                      National Security Algorithm (CNSA) 1.0 suite.
+                    type: string
+                type: object
               tenantname:
                 type: string
               tenantresources:
@@ -197,6 +216,22 @@ spec:
                 items:
                   type: string
                 type: array
+              tenantkms:
+                description: The Vault KMS transit engine status for the tenant
+                properties:
+                  keyname:
+                    description: The Vault transit key name.
+                    type: string
+                  keytype:
+                    description: The Vault transit key type.
+                    type: string
+                  publickey:
+                    description: The Vault public key.
+                    type: string
+                  transitname:
+                    description: The generated Vault transit engine name.
+                    type: string
+                type: object
               tenantresources:
                 description: The desired resources for the Tenant
                 items:
@@ -230,9 +265,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
