@@ -33,10 +33,11 @@ spec:
   type: ClusterIP
   ports:
     - name: http
-      port: {{ .Values.serverPort }}
+      targetPort: {{ .Values.serverPort }}
+      port: 80
       protocol: TCP
   selector:
-    app: cray-tapms-operator
+    hpe-operator: cray-tapms
 
 ---
 kind: Service

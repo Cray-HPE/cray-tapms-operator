@@ -26,10 +26,10 @@ image:
   #
   # Remember to change in conjuction with .version and Chart.yaml:
   #
-  tag: v0.2.1
+  tag: v0.2.2
   pullPolicy: IfNotPresent
 numReplicas: 1
 apiGateway: api-gw-service-nmn.local
-serverPort: 80
+serverPort: 9080
 externalHostname: tapms.local
 webhookTimeoutSeconds: 30

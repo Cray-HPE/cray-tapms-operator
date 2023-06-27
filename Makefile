@@ -129,7 +129,6 @@ chart: chart_setup chart_package chart_test
 
 chart_setup:
 	mkdir -p ${CHART_PATH}/.packaged
-	cp config/crd/bases/tapms.hpe.com_tenants.yaml ${CHART_PATH}/${CRD_CHART_NAME}/files
 
 chart_package:
 	echo "appVersion: ${OPERATOR_CHART_VERSION}" >> ${CHART_PATH}/${OPERATOR_CHART_NAME}/Chart.yaml

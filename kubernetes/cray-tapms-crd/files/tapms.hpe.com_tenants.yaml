@@ -91,7 +91,6 @@ spec:
                 type: array
             required:
             - childnamespaces
-            - state
             - tenantname
             - tenantresources
             type: object
