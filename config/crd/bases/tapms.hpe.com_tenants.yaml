@@ -209,11 +209,6 @@ spec:
                   transitname:
                     description: The generated Vault transit engine name.
                     type: string
-                required:
-                - keyname
-                - keytype
-                - publickey
-                - transitname
                 type: object
               tenantresources:
                 description: The desired resources for the Tenant

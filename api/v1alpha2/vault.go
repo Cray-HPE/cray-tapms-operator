@@ -68,7 +68,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 	log.Info(fmt.Sprintf("CreateVaultTransit called for tenant (%s)", t.Spec.TenantName))
 
 	createTransit := t.Spec.TenantKmsResource.Enabled
-	log.Info(fmt.Sprintf("enablekms=%s", createTransit))
+	log.Info(fmt.Sprintf("enablekms=%t", createTransit))
 
 	if createTransit {
 		// Get Vault client
@@ -89,7 +89,13 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		engine_name := t.Status.TenantKmsStatus.TransitName
 		if engine_name == "" {
 			// If not found in the status, generate it now.
-			engine_name = fmt.Sprintf("%s%s", tapms_transit_prefix, uuid.New().String())
+			if t.Status.UUID == "" {
+				// If we have no tenant UUID, generate a new UUID for the transit engine name.
+				engine_name = fmt.Sprintf("%s%s", tapms_transit_prefix, uuid.New().String())
+			} else {
+				// Include the tenant UUID in the new transit engine name.
+				engine_name = fmt.Sprintf("%s%s", tapms_transit_prefix, t.Status.UUID)
+			}
 		}
 
 		// Check for the transit engine. Create if it does not exist.
@@ -193,15 +199,17 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				if err != nil {
 					fmt.Printf("Error: %s", err.Error())
 				} else {
-					log.Info(fmt.Sprintf("Transit key data for mount point(%s) is (%s)", transit_key_mount_point, jsonStr))
 					t.Status.TenantKmsStatus.PublicKey = string(jsonStr)
 				}
 			}
 
 		} else {
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
+			// TODO: Update the k8s status (t.Status.TenantKmsStatus.PublicKey) here again
+			// to pick up any new key(s) that could have been created by rotation.
 		}
 	} else {
+		// The case where t.Spec.TenantKmsResource.Enabled=false
 		log.Info(fmt.Sprintf("No transit engine was requested for tenant (%s)", t.Spec.TenantName))
 	}
 	log.Info(fmt.Sprintf("CreateVaultTransit complete for tenant (%s)", t.Spec.TenantName))

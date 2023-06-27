@@ -168,6 +168,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
 		} else {
+			log.Info("Updating the Vault resource")
 			err = r.Update(ctx, tenant)
 			if err != nil {
 				log.Error(err, "Failed to update resource")

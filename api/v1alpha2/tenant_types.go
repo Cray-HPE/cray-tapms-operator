@@ -76,13 +76,13 @@ type TenantKmsResource struct {
 // The Vault KMS transit engine status for the tenant
 type TenantKmsStatus struct {
 	// The generated Vault transit engine name.
-	TransitName string `json:"transitname"`
+	TransitName string `json:"transitname,omitempty"`
 	// The Vault transit key name.
-	KeyName string `json:"keyname"`
+	KeyName string `json:"keyname,omitempty"`
 	// The Vault transit key type.
-	KeyType string `json:"keytype"`
+	KeyType string `json:"keytype,omitempty"`
 	// The Vault public key.
-	PublicKey string `json:"publickey"`
+	PublicKey string `json:"publickey,omitempty"`
 }
 
 // @Description The desired state of Tenant
