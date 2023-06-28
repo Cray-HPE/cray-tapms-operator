@@ -96,7 +96,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		log.Info(fmt.Sprintf("Looking for Vault transit engine by name (%s) at location (%s).", engine_name, transit_mount_point))
 
 		// Create the transit engine if not found
-		engine, err := client.Logical().Read(transit_mount_point)
+		_, err = client.Logical().Read(transit_mount_point)
 		if err != nil {
 			// This actually returns an error when the engine is not found.
 			// When this happens, the error message will contain:
