@@ -66,6 +66,8 @@ spec:
           value: "{{ .Values.apiGateway }}"
         - name: SERVER_PORT
           value: "{{ .Values.serverPort }}"
+        - name: VAULT_ADDR
+          value: "{{ .Values.vaultAddr }}"
         name: cray-tapms-operator
         ports:
         - containerPort: 9080

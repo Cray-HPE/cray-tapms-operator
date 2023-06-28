@@ -33,3 +33,4 @@ apiGateway: api-gw-service-nmn.local
 serverPort: 9080
 externalHostname: tapms.local
 webhookTimeoutSeconds: 30
+vaultAddr: http://cray-vault.vault:8200
