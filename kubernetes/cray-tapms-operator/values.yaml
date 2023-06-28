@@ -26,7 +26,7 @@ image:
   #
   # Remember to change in conjuction with .version and Chart.yaml:
   #
-  tag: v0.2.2
+  tag: v0.3.0
   pullPolicy: IfNotPresent
 numReplicas: 1
 apiGateway: api-gw-service-nmn.local
