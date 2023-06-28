@@ -49,7 +49,7 @@ import (
 var tapms_vault_role = "tapms-operator"
 
 // The K8s service account token used to perform Vault authentication.
-var k8s_service_account_token_path = "/run/secrets/kubernetes.io/serviceaccount/token"
+var k8s_service_account_token_path = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 // The tanant Vault transit engine name prefix.
 var tapms_transit_prefix = "cray-tenant-"

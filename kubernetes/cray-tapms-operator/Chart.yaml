@@ -35,6 +35,7 @@ sources:
   - https://github.com/Cray-HPE/cray-tapms-operator
 maintainers:
   - name: bklein
+  - name: rnoska
 annotations:
   artifacthub.io/license: MIT
   artifacthub.io/images: |

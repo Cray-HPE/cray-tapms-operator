@@ -32,5 +32,6 @@ sources:
   - https://github.com/Cray-HPE/cray-tapms-crd
 maintainers:
   - name: bklein
+  - name: rnoska
 annotations:
   artifacthub.io/license: MIT
