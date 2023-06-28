@@ -27,7 +27,6 @@
 package v1alpha2
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -41,7 +40,7 @@ import (
 	auth "github.com/hashicorp/vault/api/auth/kubernetes"
 )
 
-// TODO: The definitions below will need to be configurable by the site. For now,
+// The definitions below may need to be configurable by the site. For now,
 // they are tracked below.
 
 // The predefined TAPMS Vault role. This defines Vault actions that the client, based on
@@ -53,14 +52,6 @@ var k8s_service_account_token_path = "/var/run/secrets/kubernetes.io/serviceacco
 
 // The tanant Vault transit engine name prefix.
 var tapms_transit_prefix = "cray-tenant-"
-
-func engineKeyValuePairs(m map[string]interface{}) string {
-	b := new(bytes.Buffer)
-	for key, value := range m {
-		fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
-	}
-	return b.String()
-}
 
 // Create the tenant Vault transit engine
 func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
@@ -137,7 +128,6 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			}
 		} else {
 			log.Info(fmt.Sprintf("Found existing Vault transit engine by name (%s).", engine_name))
-			log.Info(fmt.Sprintf("DEBUG engine.Data (%s).", engineKeyValuePairs(engine.Data)))
 		}
 
 		// Check that we can find the engine. It should exist or have been created at this point.
@@ -145,10 +135,6 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		//if engine == nil || engine.Data["data"] == nil {
-		// What data, if any, are we expecting here? Is this a good check?
-		//	return ctrl.Result{}, fmt.Errorf("Nil transit engine or data after creation. Engine: (%s). Unable to continue.", engine_name)
-		//}
 
 		// Check that we have the expected default encryption key. Create that if not found.
 		log.Info(fmt.Sprintf("Checking for the key %s in the transit engine %s", transit_engine_key_name, engine_name))
