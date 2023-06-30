@@ -52,16 +52,49 @@ type TenantResource struct {
 	HsmPartitionName          string   `json:"hsmpartitionname,omitempty" example:"blue"`
 	HsmGroupLabel             string   `json:"hsmgrouplabel,omitempty" example:"green"`
 	EnforceExclusiveHsmGroups bool     `json:"enforceexclusivehsmgroups"`
-	ForcePowerOff             bool     `json:"forcepoweroff"`
+	//+kubebuilder:validation:Optional
+	ForcePowerOff bool `json:"forcepoweroff"`
 } // @name TenantResource
+
+// The Vault KMS transit engine specification for the tenant
+type TenantKmsResource struct {
+	//+kubebuilder:default:=false
+	//+kubebuilder:validation:Optional
+	// Create a Vault transit engine for the tenant if this setting is true.
+	Enabled bool `json:"enablekms"`
+	//+kubebuilder:default:=key1
+	//+kubebuilder:validation:Optional
+	// Optional name for the transit engine key.
+	KeyName string `json:"keyname"`
+	//+kubebuilder:default:=rsa-3072
+	//+kubebuilder:validation:Optional
+	// Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+	// The default of 3072 is the minimal permitted under the Commercial National Security Algorithm (CNSA) 1.0 suite.
+	KeyType string `json:"keytype"`
+}
+
+// The Vault KMS transit engine status for the tenant
+type TenantKmsStatus struct {
+	// The generated Vault transit engine name.
+	TransitName string `json:"transitname,omitempty"`
+	// The Vault transit key name.
+	KeyName string `json:"keyname,omitempty"`
+	// The Vault transit key type.
+	KeyType string `json:"keytype,omitempty"`
+	// The Vault public key.
+	PublicKey string `json:"publickey,omitempty"`
+}
 
 // @Description The desired state of Tenant
 type TenantSpec struct {
-	TenantName      string   `json:"tenantname" example:"vcluster-blue" binding:"required"`
+	TenantName string `json:"tenantname" example:"vcluster-blue" binding:"required"`
+	//+kubebuilder:validation:Optional
 	State           string   `json:"state" example:"New,Deploying,Deployed,Deleting"`
 	ChildNamespaces []string `json:"childnamespaces" example:"vcluster-blue-slurm"`
 	// The desired resources for the Tenant
 	TenantResources []TenantResource `json:"tenantresources" binding:"required"`
+	//+kubebuilder:validation:Optional
+	TenantKmsResource TenantKmsResource `json:"tenantkms"`
 } //@name TenantSpec
 
 // @Description The observed state of Tenant
@@ -70,6 +103,7 @@ type TenantStatus struct {
 	// The desired resources for the Tenant
 	TenantResources []TenantResource `json:"tenantresources,omitempty"`
 	UUID            string           `json:"uuid,omitempty" example:"550e8400-e29b-41d4-a716-446655440000" format:"uuid"`
+	TenantKmsStatus TenantKmsStatus  `json:"tenantkms,omitempty"`
 } // @name TenantStatus
 
 //+k8s:openapi-gen=true

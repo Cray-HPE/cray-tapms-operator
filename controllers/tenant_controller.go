@@ -157,6 +157,25 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return result, err
 		}
 
+		log.Info("Creating/updating Vault transit for: " + tenant.Spec.TenantName)
+		result, err = alphav2.CreateVaultTransit(ctx, log, tenant)
+		if err != nil {
+			log.Error(err, "Failed to create/update Vault transit")
+			return result, err
+		}
+		log.Info("Updating the Vault status")
+		err = r.Status().Update(ctx, tenant)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to update resource state: %w", err)
+		} else {
+			log.Info("Updating the Vault resource")
+			err = r.Update(ctx, tenant)
+			if err != nil {
+				log.Error(err, "Failed to update resource")
+				return ctrl.Result{}, err
+			}
+		}
+
 		if !reflect.DeepEqual(alphav2.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {
 			//
 			// Don't need to add members, that gets handled above in the create loop
@@ -339,6 +358,13 @@ func (r *TenantReconciler) finalizeTenant(ctx context.Context, log logr.Logger, 
 	result, err = alphav2.DeleteKeycloakGroup(ctx, log, t)
 	if err != nil {
 		log.Error(err, "Failed to delete Keycloak group")
+		return result, err
+	}
+
+	log.Info("Deleting Vault transit for: " + t.Spec.TenantName)
+	result, err = alphav2.DeleteVaultTransit(ctx, log, t)
+	if err != nil {
+		log.Error(err, "Failed to delete Vault transit")
 		return result, err
 	}
 
