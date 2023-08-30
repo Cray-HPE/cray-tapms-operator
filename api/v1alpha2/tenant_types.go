@@ -109,7 +109,6 @@ type TenantStatus struct {
 //+k8s:openapi-gen=true
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:storageversion
 
 // @Description The primary schema/definition of a tenant
 type Tenant struct {
