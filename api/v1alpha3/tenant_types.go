@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -39,7 +39,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha3
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +54,45 @@ type TenantResource struct {
 	EnforceExclusiveHsmGroups bool     `json:"enforceexclusivehsmgroups"`
 } // @name TenantResource
 
+// The webhook definition to call an API for tenant CRUD operations
+type TenantHook struct {
+	Name string `json:"name,omitempty"`
+	//+kubebuilder:default:=false
+	//+kubebuilder:validation:Optional
+	BlockingCall bool     `json:"blockingcall"`
+	Url          string   `json:"url,omitempty" example:"http://<url>:<port>"`
+	EventTypes   []string `json:"eventtypes,omitempty" example:"CREATE, UPDATE, DELETE"`
+}
+
+// The Vault KMS transit engine specification for the tenant
+type TenantKmsResource struct {
+	//+kubebuilder:default:=false
+	//+kubebuilder:validation:Optional
+	// Create a Vault transit engine for the tenant if this setting is true.
+	Enabled bool `json:"enablekms"`
+	//+kubebuilder:default:=key1
+	//+kubebuilder:validation:Optional
+	// Optional name for the transit engine key.
+	KeyName string `json:"keyname"`
+	//+kubebuilder:default:=rsa-3072
+	//+kubebuilder:validation:Optional
+	// Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+	// The default of 3072 is the minimal permitted under the Commercial National Security Algorithm (CNSA) 1.0 suite.
+	KeyType string `json:"keytype"`
+}
+
+// The Vault KMS transit engine status for the tenant
+type TenantKmsStatus struct {
+	// The generated Vault transit engine name.
+	TransitName string `json:"transitname,omitempty"`
+	// The Vault transit key name.
+	KeyName string `json:"keyname,omitempty"`
+	// The Vault transit key type.
+	KeyType string `json:"keytype,omitempty"`
+	// The Vault public key.
+	PublicKey string `json:"publickey,omitempty"`
+}
+
 // @Description The desired state of Tenant
 type TenantSpec struct {
 	TenantName string `json:"tenantname" example:"vcluster-blue" binding:"required"`
@@ -62,6 +101,10 @@ type TenantSpec struct {
 	ChildNamespaces []string `json:"childnamespaces" example:"vcluster-blue-slurm"`
 	// The desired resources for the Tenant
 	TenantResources []TenantResource `json:"tenantresources" binding:"required"`
+	//+kubebuilder:validation:Optional
+	TenantKmsResource TenantKmsResource `json:"tenantkms"`
+	//+kubebuilder:validation:Optional
+	TenantHooks []TenantHook `json:"tenanthooks"`
 } //@name TenantSpec
 
 // @Description The observed state of Tenant
@@ -70,10 +113,14 @@ type TenantStatus struct {
 	// The desired resources for the Tenant
 	TenantResources []TenantResource `json:"tenantresources,omitempty"`
 	UUID            string           `json:"uuid,omitempty" example:"550e8400-e29b-41d4-a716-446655440000" format:"uuid"`
+	TenantKmsStatus TenantKmsStatus  `json:"tenantkms,omitempty"`
+	TenantHooks     []TenantHook     `json:"tenanthooks,omitempty"`
 } // @name TenantStatus
 
+//+k8s:openapi-gen=true
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:storageversion
 
 // @Description The primary schema/definition of a tenant
 type Tenant struct {

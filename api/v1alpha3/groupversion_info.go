@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -23,11 +23,10 @@
  *  OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-// Package v1alpha1 contains API Schema definitions for the tapms.hpe.com v1alpha1 API group
-// +kubebuilder:object:generate=true
-// +groupName=tapms.hpe.com
-package v1alpha1
+// Package v1alpha3 contains API Schema definitions for the tapms.hpe.com v1alpha3 API group
+//+kubebuilder:object:generate=true
+//+groupName=tapms.hpe.com
+package v1alpha3
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,7 +35,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "tapms.hpe.com", Version: "v1alpha1"}
+	GroupVersion = schema.GroupVersion{Group: "tapms.hpe.com", Version: "v1alpha3"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

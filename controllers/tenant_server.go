@@ -33,7 +33,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	v1alpha2 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha2"
+	v1alpha3 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha3"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -56,7 +56,7 @@ type ResponseOk struct {
 
 func (r *TenantServer) SetupServerController(mgr ctrl.Manager) error {
 	err := ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha2.Tenant{}).
+		For(&v1alpha3.Tenant{}).
 		Complete(r)
 	if err != nil {
 		return err
@@ -71,18 +71,19 @@ func (r *TenantServer) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 func (r *TenantServer) initRoutes() {
 	router := gin.Default()
-	router.GET("v1alpha2/tenants", r.GetTenants)
-	router.GET("v1alpha2/tenants/:id", r.GetTenant)
+	router.GET("v1alpha3/tenants", r.GetTenants)
+	router.GET("v1alpha3/tenants/:id", r.GetTenant)
+	router.POST("v1alpha3/tenants", r.GetTenantsByXname)
 	router.NoRoute(r.noRoute)
-	go router.Run(v1alpha2.GetServerPort())
+	go router.Run(v1alpha3.GetServerPort())
 }
 
 func (r *TenantServer) noRoute(c *gin.Context) {
 	c.JSON(404, gin.H{"message": "Page not found"})
 }
 
-func (r *TenantServer) GetTenantsFromCache(c *gin.Context) (*v1alpha2.TenantList, error) {
-	var tenantList v1alpha2.TenantList
+func (r *TenantServer) GetTenantsFromCache(c *gin.Context) (*v1alpha3.TenantList, error) {
+	var tenantList v1alpha3.TenantList
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	err := r.List(ctx, &tenantList, &client.ListOptions{
@@ -99,17 +100,52 @@ func (r *TenantServer) GetTenantsFromCache(c *gin.Context) (*v1alpha2.TenantList
 	return &tenantList, nil
 }
 
+// GetTenantsByXname
+// @Summary Get list of tenants' spec/status with xname ownership
+// @Tags    Tenant and Partition Management System
+// @Accept  json
+// @Produce json
+// @Success 200 {array}  v1alpha3.Tenant
+// @Failure 400 {object} ResponseError
+// @Failure 404 {object} ResponseError
+// @Failure 500 {object} ResponseError
+// @Router  /v1alpha3/tenants [get]
+func (r *TenantServer) GetTenantsByXname(c *gin.Context) {
+	var tenantList v1alpha3.TenantList
+	tenantCache, err := r.GetTenantsFromCache(c)
+	if err != nil {
+		c.JSON(500, ResponseError{Message: fmt.Sprint(err)})
+		return
+	}
+
+	var xnames []string
+	if err := c.BindJSON(&xnames); err != nil {
+		c.JSON(500, ResponseError{Message: fmt.Sprint(err)})
+		return
+	}
+	for _, tenant := range tenantCache.Items {
+		for _, resource := range tenant.Spec.TenantResources {
+			if v1alpha3.HasIntersection(xnames, resource.Xnames) {
+				tenantList.Items = append(tenantList.Items, tenant)
+				break
+			}
+		}
+	}
+
+	c.JSON(200, tenantList)
+}
+
 // GetTenants
 // @Title   Tenant and Partition Management System Status API
 // @Summary Get list of tenants' spec/status
 // @Tags    Tenant and Partition Management System
 // @Accept  json
 // @Produce json
-// @Success 200 {array}  v1alpha2.Tenant
+// @Success 200 {array}  v1alpha3.Tenant
 // @Failure 400 {object} ResponseError
 // @Failure 404 {object} ResponseError
 // @Failure 500 {object} ResponseError
-// @Router  /v1alpha2/tenants [get]
+// @Router  /v1alpha3/tenants [get]
 func (r *TenantServer) GetTenants(c *gin.Context) {
 	tenantList, err := r.GetTenantsFromCache(c)
 	if err != nil {
@@ -125,11 +161,11 @@ func (r *TenantServer) GetTenants(c *gin.Context) {
 // @Tags    Tenant and Partition Management System
 // @Accept  json
 // @Produce json
-// @Success 200 {object} v1alpha2.Tenant
+// @Success 200 {object} v1alpha3.Tenant
 // @Failure 400 {object} ResponseError
 // @Failure 404 {object} ResponseError
 // @Failure 500 {object} ResponseError
-// @Router  /v1alpha2/tenants/{id} [get]
+// @Router  /v1alpha3/tenants/{id} [get]
 func (r *TenantServer) GetTenant(c *gin.Context) {
 	id := c.Param("id")
 	tenantList, err := r.GetTenantsFromCache(c)

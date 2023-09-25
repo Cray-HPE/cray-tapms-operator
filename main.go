@@ -25,7 +25,7 @@
  */
 
 // @title       TAPMS Tenant Status API
-// @version     v1alpha2
+// @version     v1alpha3
 // @description Read-Only APIs to Retrieve Tenant Status
 // @host        cray-tapms
 // @BasePath    /apis/tapms/
@@ -48,8 +48,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	v1alpha1 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha1"
 	v1alpha2 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha2"
+	v1alpha3 "github.com/Cray-HPE/cray-tapms-operator/api/v1alpha3"
 	"github.com/Cray-HPE/cray-tapms-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -61,8 +61,8 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(v1alpha2.AddToScheme(scheme))
+	utilruntime.Must(v1alpha3.AddToScheme(scheme))
 	utilruntime.Must(hncapi.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -129,7 +129,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&v1alpha2.Tenant{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&v1alpha3.Tenant{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Tenant")
 		os.Exit(1)
 	}

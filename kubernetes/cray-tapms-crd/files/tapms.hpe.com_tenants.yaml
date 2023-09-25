@@ -262,6 +262,171 @@ spec:
             type: object
         type: object
     served: true
+    storage: false
+    subresources:
+      status: {}
+  - name: v1alpha3
+    schema:
+      openAPIV3Schema:
+        description: '@Description The primary schema/definition of a tenant'
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: The desired state of Tenant
+            properties:
+              childnamespaces:
+                items:
+                  type: string
+                type: array
+              state:
+                type: string
+              tenanthooks:
+                items:
+                  description: The webhook definition to call an API for tenant CRUD
+                    operations
+                  properties:
+                    blockingcall:
+                      default: false
+                      type: boolean
+                    eventtypes:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                    url:
+                      type: string
+                  type: object
+                type: array
+              tenantkms:
+                description: The Vault KMS transit engine specification for the tenant
+                properties:
+                  enablekms:
+                    default: false
+                    description: Create a Vault transit engine for the tenant if this
+                      setting is true.
+                    type: boolean
+                  keyname:
+                    default: key1
+                    description: Optional name for the transit engine key.
+                    type: string
+                  keytype:
+                    default: rsa-3072
+                    description: Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+                      The default of 3072 is the minimal permitted under the Commercial
+                      National Security Algorithm (CNSA) 1.0 suite.
+                    type: string
+                type: object
+              tenantname:
+                type: string
+              tenantresources:
+                description: The desired resources for the Tenant
+                items:
+                  description: '@Description The desired resources for the Tenant'
+                  properties:
+                    enforceexclusivehsmgroups:
+                      type: boolean
+                    hsmgrouplabel:
+                      type: string
+                    hsmpartitionname:
+                      type: string
+                    type:
+                      type: string
+                    xnames:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - enforceexclusivehsmgroups
+                  - type
+                  - xnames
+                  type: object
+                type: array
+            required:
+            - childnamespaces
+            - tenantname
+            - tenantresources
+            type: object
+          status:
+            description: The observed state of Tenant
+            properties:
+              childnamespaces:
+                items:
+                  type: string
+                type: array
+              tenanthooks:
+                items:
+                  description: The webhook definition to call an API for tenant CRUD
+                    operations
+                  properties:
+                    blockingcall:
+                      default: false
+                      type: boolean
+                    eventtypes:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                    url:
+                      type: string
+                  type: object
+                type: array
+              tenantkms:
+                description: The Vault KMS transit engine status for the tenant
+                properties:
+                  keyname:
+                    description: The Vault transit key name.
+                    type: string
+                  keytype:
+                    description: The Vault transit key type.
+                    type: string
+                  publickey:
+                    description: The Vault public key.
+                    type: string
+                  transitname:
+                    description: The generated Vault transit engine name.
+                    type: string
+                type: object
+              tenantresources:
+                description: The desired resources for the Tenant
+                items:
+                  description: '@Description The desired resources for the Tenant'
+                  properties:
+                    enforceexclusivehsmgroups:
+                      type: boolean
+                    hsmgrouplabel:
+                      type: string
+                    hsmpartitionname:
+                      type: string
+                    type:
+                      type: string
+                    xnames:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - enforceexclusivehsmgroups
+                  - type
+                  - xnames
+                  type: object
+                type: array
+              uuid:
+                type: string
+            type: object
+        type: object
+    served: true
     storage: true
     subresources:
       status: {}
