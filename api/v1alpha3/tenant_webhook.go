@@ -75,11 +75,6 @@ var _ webhook.Validator = &Tenant{}
 func (t *Tenant) ValidateCreate() error {
 	Log.Info("Validating create for", "tenant", t.Name)
 
-	err := CallHooks(t, Log, "CREATE")
-	if err != nil {
-		return err
-	}
-
 	for _, specResource := range t.Spec.TenantResources {
 		if specResource.Type == "compute" {
 			err := t.ValidateNodeTypeForXnames(specResource.Xnames, "Node", "Compute")
@@ -100,17 +95,18 @@ func (t *Tenant) ValidateCreate() error {
 			return err
 		}
 	}
+
+	err := CallHooks(t, Log, "CREATE")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (t *Tenant) ValidateUpdate(old runtime.Object) error {
 	Log.Info("Validating update for", "tenant", t.Name)
-
-	err := CallHooks(t, Log, "UPDATE")
-	if err != nil {
-		return err
-	}
 
 	for _, specResource := range t.Spec.TenantResources {
 
@@ -151,13 +147,21 @@ func (t *Tenant) ValidateUpdate(old runtime.Object) error {
 		}
 	}
 
+	err := CallHooks(t, Log, "UPDATE")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (t *Tenant) ValidateDelete() error {
-	CallHooks(t, Log, "DELETE")
 	Log.Info("Validating delete for", "tenant", t.Name)
+	err := CallHooks(t, Log, "DELETE")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

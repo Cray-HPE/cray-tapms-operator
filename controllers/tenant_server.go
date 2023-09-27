@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -101,15 +101,17 @@ func (r *TenantServer) GetTenantsFromCache(c *gin.Context) (*v1alpha3.TenantList
 }
 
 // GetTenantsByXname
-// @Summary Get list of tenants' spec/status with xname ownership
-// @Tags    Tenant and Partition Management System
-// @Accept  json
-// @Produce json
-// @Success 200 {array}  v1alpha3.Tenant
-// @Failure 400 {object} ResponseError
-// @Failure 404 {object} ResponseError
-// @Failure 500 {object} ResponseError
-// @Router  /v1alpha3/tenants [get]
+//
+//	@Summary	Get list of tenants' spec/status with xname ownership
+//	@Tags		Tenant and Partition Management System
+//	@Accept		json
+//	@Produce	json
+//	@Param		xnames	body		string	true	"Array of Xnames"	SchemaExample(["x1000c0s0b0n0", "x1000c0s0b1n0"])
+//	@Success	200		{array}		v1alpha3.Tenant
+//	@Failure	400		{object}	ResponseError
+//	@Failure	404		{object}	ResponseError
+//	@Failure	500		{object}	ResponseError
+//	@Router		/v1alpha3/tenants [post]
 func (r *TenantServer) GetTenantsByXname(c *gin.Context) {
 	var tenantList v1alpha3.TenantList
 	tenantCache, err := r.GetTenantsFromCache(c)
@@ -136,16 +138,17 @@ func (r *TenantServer) GetTenantsByXname(c *gin.Context) {
 }
 
 // GetTenants
-// @Title   Tenant and Partition Management System Status API
-// @Summary Get list of tenants' spec/status
-// @Tags    Tenant and Partition Management System
-// @Accept  json
-// @Produce json
-// @Success 200 {array}  v1alpha3.Tenant
-// @Failure 400 {object} ResponseError
-// @Failure 404 {object} ResponseError
-// @Failure 500 {object} ResponseError
-// @Router  /v1alpha3/tenants [get]
+//
+//	@Title		Tenant and Partition Management System Status API
+//	@Summary	Get list of tenants' spec/status
+//	@Tags		Tenant and Partition Management System
+//	@Accept		json
+//	@Produce	json
+//	@Success	200	{array}		v1alpha3.Tenant
+//	@Failure	400	{object}	ResponseError
+//	@Failure	404	{object}	ResponseError
+//	@Failure	500	{object}	ResponseError
+//	@Router		/v1alpha3/tenants [get]
 func (r *TenantServer) GetTenants(c *gin.Context) {
 	tenantList, err := r.GetTenantsFromCache(c)
 	if err != nil {
@@ -156,16 +159,17 @@ func (r *TenantServer) GetTenants(c *gin.Context) {
 }
 
 // GetTenant
-// @Summary Get a tenant's spec/status
-// @Param   id path string true "Either the Name or UUID of the Tenant"
-// @Tags    Tenant and Partition Management System
-// @Accept  json
-// @Produce json
-// @Success 200 {object} v1alpha3.Tenant
-// @Failure 400 {object} ResponseError
-// @Failure 404 {object} ResponseError
-// @Failure 500 {object} ResponseError
-// @Router  /v1alpha3/tenants/{id} [get]
+//
+//	@Summary	Get a tenant's spec/status
+//	@Param		id	path	string	true	"Either the Name or UUID of the Tenant"
+//	@Tags		Tenant and Partition Management System
+//	@Accept		json
+//	@Produce	json
+//	@Success	200	{object}	v1alpha3.Tenant
+//	@Failure	400	{object}	ResponseError
+//	@Failure	404	{object}	ResponseError
+//	@Failure	500	{object}	ResponseError
+//	@Router		/v1alpha3/tenants/{id} [get]
 func (r *TenantServer) GetTenant(c *gin.Context) {
 	id := c.Param("id")
 	tenantList, err := r.GetTenantsFromCache(c)

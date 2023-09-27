@@ -54,7 +54,7 @@ type TenantResource struct {
 	EnforceExclusiveHsmGroups bool     `json:"enforceexclusivehsmgroups"`
 } // @name TenantResource
 
-// The webhook definition to call an API for tenant CRUD operations
+// @Description The webhook definition to call an API for tenant CRUD operations
 type TenantHook struct {
 	Name string `json:"name,omitempty"`
 	//+kubebuilder:default:=false
@@ -62,9 +62,21 @@ type TenantHook struct {
 	BlockingCall bool     `json:"blockingcall"`
 	Url          string   `json:"url,omitempty" example:"http://<url>:<port>"`
 	EventTypes   []string `json:"eventtypes,omitempty" example:"CREATE, UPDATE, DELETE"`
-}
+	//+kubebuilder:validation:Optional
+	HookCredentials HookCredentials `json:"hookcredentials,omitempty"`
+} // @name TenantHook
 
-// The Vault KMS transit engine specification for the tenant
+// @Description Optional credentials for calling webhook
+type HookCredentials struct {
+	//+kubebuilder:validation:Optional
+	// Optional Kubernetes secret name containing credentials for calling webhook
+	SecretName string `json:"secretname,omitempty"`
+	//+kubebuilder:validation:Optional
+	// Optional Kubernetes namespace for the secret
+	SecretNamespace string `json:"secretnamespace,omitempty"`
+} // @name HookCredentials
+
+// @Description The Vault KMS transit engine specification for the tenant
 type TenantKmsResource struct {
 	//+kubebuilder:default:=false
 	//+kubebuilder:validation:Optional
@@ -79,9 +91,9 @@ type TenantKmsResource struct {
 	// Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
 	// The default of 3072 is the minimal permitted under the Commercial National Security Algorithm (CNSA) 1.0 suite.
 	KeyType string `json:"keytype"`
-}
+} // @name TenantKmsResource
 
-// The Vault KMS transit engine status for the tenant
+// @Description The Vault KMS transit engine status for the tenant
 type TenantKmsStatus struct {
 	// The generated Vault transit engine name.
 	TransitName string `json:"transitname,omitempty"`
@@ -91,7 +103,7 @@ type TenantKmsStatus struct {
 	KeyType string `json:"keytype,omitempty"`
 	// The Vault public key.
 	PublicKey string `json:"publickey,omitempty"`
-}
+} // @name TenantKmsStatus
 
 // @Description The desired state of Tenant
 type TenantSpec struct {
@@ -144,3 +156,5 @@ type TenantList struct {
 func init() {
 	SchemeBuilder.Register(&Tenant{}, &TenantList{})
 }
+
+type Xnames []string

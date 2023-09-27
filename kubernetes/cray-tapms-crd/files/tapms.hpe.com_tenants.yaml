@@ -303,6 +303,17 @@ spec:
                       items:
                         type: string
                       type: array
+                    hookcredentials:
+                      description: Optional credentials for calling webhook
+                      properties:
+                        secretname:
+                          description: Optional Kubernetes secret name containing
+                            credentials for calling webhook
+                          type: string
+                        secretnamespace:
+                          description: Optional Kubernetes namespace for the secret
+                          type: string
+                      type: object
                     name:
                       type: string
                     url:
@@ -377,6 +388,17 @@ spec:
                       items:
                         type: string
                       type: array
+                    hookcredentials:
+                      description: Optional credentials for calling webhook
+                      properties:
+                        secretname:
+                          description: Optional Kubernetes secret name containing
+                            credentials for calling webhook
+                          type: string
+                        secretnamespace:
+                          description: Optional Kubernetes namespace for the secret
+                          type: string
+                      type: object
                     name:
                       type: string
                     url:
