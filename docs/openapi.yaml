@@ -21,170 +21,292 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
-openapi: 3.0.1
+basePath: /apis/tapms/
+definitions:
+  HookCredentials:
+    description: Optional credentials for calling webhook
+    properties:
+      secretname:
+        description: |-
+          +kubebuilder:validation:Optional
+          Optional Kubernetes secret name containing credentials for calling webhook
+        type: string
+      secretnamespace:
+        description: |-
+          +kubebuilder:validation:Optional
+          Optional Kubernetes namespace for the secret
+        type: string
+    type: object
+  ResponseError:
+    properties:
+      message:
+        example: Error Message...
+        type: string
+    type: object
+  Tenant:
+    description: The primary schema/definition of a tenant
+    properties:
+      spec:
+        allOf:
+        - $ref: '#/definitions/TenantSpec'
+        description: The desired state of Tenant
+      status:
+        allOf:
+        - $ref: '#/definitions/TenantStatus'
+        description: The observed state of Tenant
+    required:
+    - spec
+    type: object
+  TenantHook:
+    description: The webhook definition to call an API for tenant CRUD operations
+    properties:
+      blockingcall:
+        description: |-
+          +kubebuilder:default:=false
+          +kubebuilder:validation:Optional
+        type: boolean
+      eventtypes:
+        example:
+        - CREATE
+        - ' UPDATE'
+        - ' DELETE'
+        items:
+          type: string
+        type: array
+      hookcredentials:
+        allOf:
+        - $ref: '#/definitions/HookCredentials'
+        description: +kubebuilder:validation:Optional
+      name:
+        type: string
+      url:
+        example: http://<url>:<port>
+        type: string
+    type: object
+  TenantKmsResource:
+    description: The Vault KMS transit engine specification for the tenant
+    properties:
+      enablekms:
+        description: |-
+          +kubebuilder:default:=false
+          +kubebuilder:validation:Optional
+          Create a Vault transit engine for the tenant if this setting is true.
+        type: boolean
+      keyname:
+        description: |-
+          +kubebuilder:default:=key1
+          +kubebuilder:validation:Optional
+          Optional name for the transit engine key.
+        type: string
+      keytype:
+        description: |-
+          +kubebuilder:default:=rsa-3072
+          +kubebuilder:validation:Optional
+          Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type
+          The default of 3072 is the minimal permitted under the Commercial National Security Algorithm (CNSA) 1.0 suite.
+        type: string
+    type: object
+  TenantKmsStatus:
+    description: The Vault KMS transit engine status for the tenant
+    properties:
+      keyname:
+        description: The Vault transit key name.
+        type: string
+      keytype:
+        description: The Vault transit key type.
+        type: string
+      publickey:
+        description: The Vault public key.
+        type: string
+      transitname:
+        description: The generated Vault transit engine name.
+        type: string
+    type: object
+  TenantResource:
+    description: The desired resources for the Tenant
+    properties:
+      enforceexclusivehsmgroups:
+        type: boolean
+      hsmgrouplabel:
+        example: green
+        type: string
+      hsmpartitionname:
+        example: blue
+        type: string
+      type:
+        example: compute
+        type: string
+      xnames:
+        example:
+        - x0c3s5b0n0
+        - x0c3s6b0n0
+        items:
+          type: string
+        type: array
+    required:
+    - type
+    - xnames
+    type: object
+  TenantSpec:
+    description: The desired state of Tenant
+    properties:
+      childnamespaces:
+        example:
+        - vcluster-blue-slurm
+        items:
+          type: string
+        type: array
+      state:
+        description: +kubebuilder:validation:Optional
+        example: New,Deploying,Deployed,Deleting
+        type: string
+      tenanthooks:
+        description: +kubebuilder:validation:Optional
+        items:
+          $ref: '#/definitions/TenantHook'
+        type: array
+      tenantkms:
+        allOf:
+        - $ref: '#/definitions/TenantKmsResource'
+        description: +kubebuilder:validation:Optional
+      tenantname:
+        example: vcluster-blue
+        type: string
+      tenantresources:
+        description: The desired resources for the Tenant
+        items:
+          $ref: '#/definitions/TenantResource'
+        type: array
+    required:
+    - tenantname
+    - tenantresources
+    type: object
+  TenantStatus:
+    description: The observed state of Tenant
+    properties:
+      childnamespaces:
+        example:
+        - vcluster-blue-slurm
+        items:
+          type: string
+        type: array
+      tenanthooks:
+        items:
+          $ref: '#/definitions/TenantHook'
+        type: array
+      tenantkms:
+        $ref: '#/definitions/TenantKmsStatus'
+      tenantresources:
+        description: The desired resources for the Tenant
+        items:
+          $ref: '#/definitions/TenantResource'
+        type: array
+      uuid:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        format: uuid
+        type: string
+    type: object
+host: cray-tapms
 info:
-  title: TAPMS Tenant Status API
-  description: Read-Only APIs to Retrieve Tenant Status
   contact: {}
-  version: v1alpha2
-servers:
-- url: //cray-tapms/apis/tapms/
+  description: Read-Only APIs to Retrieve Tenant Status
+  title: TAPMS Tenant Status API
+  version: v1alpha3
 paths:
-  /v1alpha2/tenants:
+  /v1alpha3/tenants:
     get:
-      tags:
-      - Tenant and Partition Management System
-      summary: Get list of tenants' spec/status
+      consumes:
+      - application/json
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Tenant'
-        400:
+          schema:
+            items:
+              $ref: '#/definitions/Tenant'
+            type: array
+        "400":
           description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseError'
-        404:
+          schema:
+            $ref: '#/definitions/ResponseError'
+        "404":
           description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseError'
-        500:
+          schema:
+            $ref: '#/definitions/ResponseError'
+        "500":
           description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseError'
-  /v1alpha2/tenants/{id}:
-    get:
+          schema:
+            $ref: '#/definitions/ResponseError'
+      summary: Get list of tenants' spec/status
       tags:
       - Tenant and Partition Management System
-      summary: Get a tenant's spec/status
+    post:
+      consumes:
+      - application/json
       parameters:
-      - name: id
-        in: path
-        description: Either the Name or UUID of the Tenant
+      - description: Array of Xnames
+        in: body
+        name: xnames
         required: true
         schema:
+          example: '["x1000c0s0b0n0", "x1000c0s0b1n0"]'
           type: string
+      produces:
+      - application/json
       responses:
-        200:
+        "200":
           description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Tenant'
-        400:
+          schema:
+            items:
+              $ref: '#/definitions/Tenant'
+            type: array
+        "400":
           description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseError'
-        404:
+          schema:
+            $ref: '#/definitions/ResponseError'
+        "404":
           description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseError'
-        500:
+          schema:
+            $ref: '#/definitions/ResponseError'
+        "500":
           description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseError'
-components:
-  schemas:
-    ResponseError:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Error Message...
-    Tenant:
-      required:
-      - spec
-      type: object
-      properties:
-        spec:
-          $ref: '#/components/schemas/TenantSpec'
-        status:
-          $ref: '#/components/schemas/TenantStatus'
-      description: The primary schema/definition of a tenant
-    TenantResource:
-      required:
-      - type
-      - xnames
-      type: object
-      properties:
-        enforceexclusivehsmgroups:
-          type: boolean
-        forcepoweroff:
-          type: boolean
-        hsmgrouplabel:
-          type: string
-          example: green
-        hsmpartitionname:
-          type: string
-          example: blue
-        type:
-          type: string
-          example: compute
-        xnames:
-          type: array
-          example:
-          - x0c3s5b0n0
-          - x0c3s6b0n0
-          items:
-            type: string
-      description: The desired resources for the Tenant
-    TenantSpec:
-      required:
-      - tenantname
-      - tenantresources
-      type: object
-      properties:
-        childnamespaces:
-          type: array
-          example:
-          - vcluster-blue-slurm
-          items:
-            type: string
-        state:
-          type: string
-          example: New,Deploying,Deployed,Deleting
-        tenantname:
-          type: string
-          example: vcluster-blue
-        tenantresources:
-          type: array
-          description: The desired resources for the Tenant
-          items:
-            $ref: '#/components/schemas/TenantResource'
-      description: The desired state of Tenant
-    TenantStatus:
-      type: object
-      properties:
-        childnamespaces:
-          type: array
-          example:
-          - vcluster-blue-slurm
-          items:
-            type: string
-        tenantresources:
-          type: array
-          description: The desired resources for the Tenant
-          items:
-            $ref: '#/components/schemas/TenantResource'
-        uuid:
-          type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
-      description: The observed state of Tenant
+          schema:
+            $ref: '#/definitions/ResponseError'
+      summary: Get list of tenants' spec/status with xname ownership
+      tags:
+      - Tenant and Partition Management System
+  /v1alpha3/tenants/{id}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Either the Name or UUID of the Tenant
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Tenant'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ResponseError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ResponseError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ResponseError'
+      summary: Get a tenant's spec/status
+      tags:
+      - Tenant and Partition Management System
+swagger: "2.0"
 
