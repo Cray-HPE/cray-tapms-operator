@@ -28,15 +28,22 @@ package v1alpha3
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var validEventTypes = []string{"CREATE", "UPDATE", "DELETE"}
+
+var HooksClient client.Client
 
 type TenantEventPayload struct {
 	TenantSpec TenantSpec `json:"tenantspec"`
@@ -46,55 +53,75 @@ type TenantEventPayload struct {
 func CallHooks(tenant *Tenant, log logr.Logger, event string) error {
 
 	for _, hook := range tenant.Spec.TenantHooks {
-		err := validateEventType(log, hook.EventTypes)
+		err := CallHook(hook, tenant, log, event)
 		if err != nil {
 			return err
 		}
-
-		if !Contains(hook.EventTypes, event) {
-			continue
-		}
-
-		payload := TenantEventPayload{}
-		payload.EventType = event
-		payload.TenantSpec = tenant.Spec
-		payloadBytes, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-
-		req, err := http.NewRequest(http.MethodPost, hook.Url, bytes.NewBuffer(payloadBytes))
-		if err != nil {
-			return err
-		}
-		req.Header.Add("Content-Length", strconv.FormatInt(req.ContentLength, 10))
-
-		blockText := ""
-		if hook.BlockingCall {
-			blockText = "Blocking"
-		} else {
-			blockText = "Notify"
-		}
-
-		Log.Info(fmt.Sprintf("Calling hook named '%s' at url %s (%s)", hook.Name, hook.Url, blockText))
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Set("Block", strconv.FormatBool(hook.BlockingCall))
-
-		HTTPClient := NewHttpClient()
-		resp, err := HTTPClient.Do(req)
-		if err != nil {
-			return err
-		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode < 200 || resp.StatusCode > 299 {
-			return fmt.Errorf("%s call to '%s' hook at url %s returned a non-200 response code: %d", blockText, hook.Name, hook.Url, resp.StatusCode)
-		}
-		Log.Info(fmt.Sprintf("%s call to '%s' hook at url %s called successfully", blockText, hook.Name, hook.Url))
 	}
+
+	globalHooks, err := getGlobalHooks(log)
+	if err != nil {
+		return err
+	}
+	for _, hook := range globalHooks {
+		err := CallHook(hook, tenant, log, event)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func CallHook(hook TenantHook, tenant *Tenant, log logr.Logger, event string) error {
+	err := validateEventType(log, hook.EventTypes)
+	if err != nil {
+		return err
+	}
+
+	if !Contains(hook.EventTypes, event) {
+		return nil
+	}
+
+	payload := TenantEventPayload{}
+	payload.EventType = event
+	payload.TenantSpec = tenant.Spec
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, hook.Url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Content-Length", strconv.FormatInt(req.ContentLength, 10))
+
+	blockText := ""
+	if hook.BlockingCall {
+		blockText = "Blocking"
+	} else {
+		blockText = "Notify"
+	}
+
+	Log.Info(fmt.Sprintf("Calling hook named '%s' at url %s (%s)", hook.Name, hook.Url, blockText))
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Block", strconv.FormatBool(hook.BlockingCall))
+
+	HTTPClient := NewHttpClient()
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("%s call to '%s' hook at url %s returned a non-200 response code: %d", blockText, hook.Name, hook.Url, resp.StatusCode)
+	}
+	Log.Info(fmt.Sprintf("%s call to '%s' hook at url %s called successfully", blockText, hook.Name, hook.Url))
 
 	return nil
 }
@@ -106,4 +133,36 @@ func validateEventType(log logr.Logger, events []string) error {
 		}
 	}
 	return nil
+}
+
+func getGlobalHooks(log logr.Logger) ([]TenantHook, error) {
+	tenantList, err := getTenants(log)
+	if err != nil {
+		return nil, err
+	}
+	globalHooks := []TenantHook{}
+	for _, tenant := range tenantList.Items {
+		if strings.HasPrefix(tenant.Spec.TenantName, "global-") {
+			globalHooks = append(globalHooks, tenant.Spec.TenantHooks...)
+		}
+	}
+	return globalHooks, nil
+}
+
+func getTenants(log logr.Logger) (*TenantList, error) {
+	var tenantList TenantList
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err := HooksClient.List(ctx, &tenantList, &client.ListOptions{
+		Namespace: "tenants",
+	})
+
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			log.Info("No tenants found")
+		} else {
+			return nil, fmt.Errorf("failed to get tenant list: %w", err)
+		}
+	}
+	return &tenantList, nil
 }

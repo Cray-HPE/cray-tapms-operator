@@ -134,6 +134,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	v1alpha3.HooksClient = mgr.GetClient()
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
