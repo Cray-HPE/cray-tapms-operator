@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -153,8 +153,31 @@ type TenantList struct {
 	Items           []Tenant `json:"items"`
 }
 
+//+k8s:openapi-gen=true
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+//+kubebuilder:storageversion
+
+// @Description The primary schema/definition of a global tenant hook
+type GlobalTenantHook struct {
+	metav1.TypeMeta   `json:",inline" swaggerignore:"true"`
+	metav1.ObjectMeta `json:"metadata,omitempty" swaggerignore:"true"`
+	// The desired state of the global tenant hook
+	Spec TenantHook `json:"spec,omitempty" binding:"required"`
+} // @name Tenant
+
+//+kubebuilder:object:root=true
+
+// @Description List of global tenant hooks
+type GlobalTenantHookList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []GlobalTenantHook `json:"items"`
+}
+
 func init() {
 	SchemeBuilder.Register(&Tenant{}, &TenantList{})
+	SchemeBuilder.Register(&GlobalTenantHook{}, &GlobalTenantHookList{})
 }
 
 type Xnames []string

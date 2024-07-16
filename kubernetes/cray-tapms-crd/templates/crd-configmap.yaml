@@ -30,3 +30,5 @@ metadata:
 data:
   tapms.hpe.com_tenants.yaml: |-
     {{- .Files.Get "files/tapms.hpe.com_tenants.yaml" | nindent 4 }}
+  tapms.hpe.com_globaltenanthooks.yaml: |-
+    {{- .Files.Get "files/tapms.hpe.com_globaltenanthooks.yaml" | nindent 4 }}

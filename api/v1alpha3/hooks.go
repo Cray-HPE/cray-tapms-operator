@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -33,7 +33,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -136,33 +135,31 @@ func validateEventType(log logr.Logger, events []string) error {
 }
 
 func getGlobalHooks(log logr.Logger) ([]TenantHook, error) {
-	tenantList, err := getTenants(log)
+	webhookList, err := getGlobalHooksList(log)
 	if err != nil {
 		return nil, err
 	}
 	globalHooks := []TenantHook{}
-	for _, tenant := range tenantList.Items {
-		if strings.HasPrefix(tenant.Spec.TenantName, "global-") {
-			globalHooks = append(globalHooks, tenant.Spec.TenantHooks...)
-		}
+	for _, webhook := range webhookList.Items {
+		globalHooks = append(globalHooks, webhook.Spec)
 	}
 	return globalHooks, nil
 }
 
-func getTenants(log logr.Logger) (*TenantList, error) {
-	var tenantList TenantList
+func getGlobalHooksList(log logr.Logger) (*GlobalTenantHookList, error) {
+	var webhookList GlobalTenantHookList
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err := HooksClient.List(ctx, &tenantList, &client.ListOptions{
+	err := HooksClient.List(ctx, &webhookList, &client.ListOptions{
 		Namespace: "tenants",
 	})
 
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			log.Info("No tenants found")
+			log.Info("No global tenant webhooks found")
 		} else {
-			return nil, fmt.Errorf("failed to get tenant list: %w", err)
+			return nil, fmt.Errorf("failed to get global tenant webhooks list: %w", err)
 		}
 	}
-	return &tenantList, nil
+	return &webhookList, nil
 }

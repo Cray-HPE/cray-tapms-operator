@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2023 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2023-2024 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -293,8 +293,8 @@ spec:
                 type: string
               tenanthooks:
                 items:
-                  description: The webhook definition to call an API for tenant CRUD
-                    operations
+                  description: '@Description The webhook definition to call an API
+                    for tenant CRUD operations'
                   properties:
                     blockingcall:
                       default: false
@@ -304,7 +304,8 @@ spec:
                         type: string
                       type: array
                     hookcredentials:
-                      description: Optional credentials for calling webhook
+                      description: '@Description Optional credentials for calling
+                        webhook'
                       properties:
                         secretname:
                           description: Optional Kubernetes secret name containing
@@ -321,7 +322,8 @@ spec:
                   type: object
                 type: array
               tenantkms:
-                description: The Vault KMS transit engine specification for the tenant
+                description: '@Description The Vault KMS transit engine specification
+                  for the tenant'
                 properties:
                   enablekms:
                     default: false
@@ -378,8 +380,8 @@ spec:
                 type: array
               tenanthooks:
                 items:
-                  description: The webhook definition to call an API for tenant CRUD
-                    operations
+                  description: '@Description The webhook definition to call an API
+                    for tenant CRUD operations'
                   properties:
                     blockingcall:
                       default: false
@@ -389,7 +391,8 @@ spec:
                         type: string
                       type: array
                     hookcredentials:
-                      description: Optional credentials for calling webhook
+                      description: '@Description Optional credentials for calling
+                        webhook'
                       properties:
                         secretname:
                           description: Optional Kubernetes secret name containing
@@ -406,7 +409,8 @@ spec:
                   type: object
                 type: array
               tenantkms:
-                description: The Vault KMS transit engine status for the tenant
+                description: '@Description The Vault KMS transit engine status for
+                  the tenant'
                 properties:
                   keyname:
                     description: The Vault transit key name.

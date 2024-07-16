@@ -54,9 +54,9 @@ spec:
           imagePullPolicy: {{ .Values.util.image.pullPolicy }}
           volumeMounts:
            - name: "tapms-crd-configmap"
-             mountPath: /tmp
+             mountPath: /tmp/tapms
           command:
             - '/bin/sh'
           args:
             - "-c"
-            - kubectl apply -f /tmp/tapms.hpe.com_tenants.yaml
+            - kubectl apply -f /tmp/tapms
