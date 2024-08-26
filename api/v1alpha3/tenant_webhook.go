@@ -47,7 +47,7 @@ func (t *Tenant) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
-//+kubebuilder:webhook:path=/mutate-tapms-hpe-com-v1alpha3-tenant,mutating=true,failurePolicy=fail,sideEffects=None,groups=tapms.hpe.com,resources=tenants,verbs=create;update,versions=v1alpha3,name=mtenant.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-tapms-hpe-com-v1alpha3-tenant,mutating=true,failurePolicy=fail,sideEffects=None,groups=tapms.hpe.com,resources=tenants,verbs=create;update;delete,versions=v1alpha3,name=mtenant.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &Tenant{}
 
@@ -67,7 +67,7 @@ func (t *Tenant) Default() {
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-tapms-hpe-com-v1alpha3-tenant,mutating=false,failurePolicy=fail,sideEffects=None,groups=tapms.hpe.com,resources=tenants,verbs=create;update,versions=v1alpha3,name=vtenant.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-tapms-hpe-com-v1alpha3-tenant,mutating=false,failurePolicy=fail,sideEffects=None,groups=tapms.hpe.com,resources=tenants,verbs=create;update;delete,versions=v1alpha3,name=vtenant.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Tenant{}
 

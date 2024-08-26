@@ -65,6 +65,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - tenants
   sideEffects: None
@@ -132,6 +133,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - tenants
   sideEffects: None
