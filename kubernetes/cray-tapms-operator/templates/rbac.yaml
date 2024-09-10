@@ -64,6 +64,7 @@ rules:
   - tapms.hpe.com
   resources:
   - tenants
+  - globaltenanthooks
   verbs:
   - create
   - delete

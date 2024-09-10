@@ -102,6 +102,7 @@ help: ## Display this help.
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	cp ./config/crd/bases/tapms.hpe.com_tenants.yaml ./kubernetes/cray-tapms-crd/files/tapms.hpe.com_tenants.yaml
+	cp ./config/crd/bases/tapms.hpe.com_globaltenanthooks.yaml ./kubernetes/cray-tapms-crd/files/tapms.hpe.com_globaltenanthooks.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.

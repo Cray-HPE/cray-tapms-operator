@@ -26,6 +26,7 @@
 # It should be run by config/default
 resources:
 - bases/tapms.hpe.com_tenants.yaml
+- bases/tapms.hpe.com_globaltenanthooks.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
