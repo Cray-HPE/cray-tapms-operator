@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022-2023 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -389,6 +389,8 @@ func editHsmGroupMembers(ctx context.Context, log logr.Logger, tenantName string
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
 			if resp.StatusCode == 404 {
 				log.Info(fmt.Sprintf("HSM member %s already deleted from group %s", member, hsmGroupLabel))
+			} else if resp.StatusCode == 409 {
+				log.Info(fmt.Sprintf("HSM member %s already added to partition %s", member, hsmGroupLabel))
 			} else {
 				return ctrl.Result{}, fmt.Errorf("HSM returned a non-200 response %s member %s for group %s", action, member, hsmGroupLabel)
 			}
@@ -447,6 +449,8 @@ func editHsmPartitionMembers(ctx context.Context, log logr.Logger, tenantName st
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
 			if resp.StatusCode == 404 {
 				log.Info(fmt.Sprintf("HSM member %s already deleted from partition %s", member, hsmPartitionName))
+			} else if resp.StatusCode == 409 {
+				log.Info(fmt.Sprintf("HSM member %s already added to partition %s", member, hsmPartitionName))
 			} else {
 				return ctrl.Result{}, fmt.Errorf("HSM returned a non-200 response %s member %s for partition %s", action, member, hsmPartitionName)
 			}
