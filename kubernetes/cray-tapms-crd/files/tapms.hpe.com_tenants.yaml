@@ -66,6 +66,7 @@ spec:
                 type: string
               tenantname:
                 type: string
+                pattern: "^vcluster-"
               tenantresources:
                 description: The desired resources for the Tenant
                 items:
@@ -179,6 +180,7 @@ spec:
                 type: object
               tenantname:
                 type: string
+                pattern: "^vcluster-"
               tenantresources:
                 description: The desired resources for the Tenant
                 items:
@@ -343,6 +345,7 @@ spec:
                 type: object
               tenantname:
                 type: string
+                pattern: "^vcluster-"
               tenantresources:
                 description: The desired resources for the Tenant
                 items:
