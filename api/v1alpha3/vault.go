@@ -50,7 +50,7 @@ var tapms_vault_role = "tapms-operator"
 // The K8s service account token used to perform Vault authentication.
 var k8s_service_account_token_path = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
-// The tanant Vault transit engine name prefix.
+// The tenant Vault transit engine name prefix.
 var tapms_transit_prefix = "cray-tenant-"
 
 // Create the tenant Vault transit engine
@@ -95,6 +95,12 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		transit_mount_point := fmt.Sprintf("sys/mounts/%s", engine_name)
 		log.Info(fmt.Sprintf("Looking for Vault transit engine by name (%s) at location (%s).", engine_name, transit_mount_point))
 
+		// Create names for policy and authentication roles.
+		// This will allow access to the transist engines for tenant admins.
+		// The policy and auth role will be named based on the engine name
+		auth_policy_name := fmt.Sprintf("allow_%s", engine_name)
+		auth_role_name := fmt.Sprintf("%s", engine_name)
+
 		// Create the transit engine if not found
 		_, err = client.Logical().Read(transit_mount_point)
 		if err != nil {
@@ -108,6 +114,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			if strings.Contains(err.Error(), fmt.Sprintf("No secret engine mount at %s", engine_name)) {
 				log.Info(fmt.Sprintf("Did not find existing transit engine (%s).", engine_name))
 
+				// Create the transist engine
 				log.Info(fmt.Sprintf("Creating new transit engine now. Name (%s)", engine_name))
 				engine_info := map[string]interface{}{
 					"type":        "transit",
@@ -116,7 +123,36 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				_, err := client.Logical().Write(transit_mount_point, engine_info)
 				if err != nil {
 					// We had an issue creating the engine.
+					CleanUpOnError(log, client, engine_name)
 					return ctrl.Result{}, err
+				}
+
+				// Create the auth policy
+				log.Info(fmt.Sprintf("Creating new authentication policy now. Name (%s)", auth_policy_name))
+				auth_policy := map[string]interface{}{
+					"policy": fmt.Sprintf("path \"%s\" {\n  capabilities = [\"read\", \"update\", \"list\"]\n}", engine_name),
+				}
+				policy_path := fmt.Sprintf("sys/policy/%s", auth_policy_name)
+				_, err_policy := client.Logical().Write(policy_path, auth_policy)
+				if err_policy != nil {
+					// We had an issue creating the policy.
+					CleanUpOnError(log, client, engine_name)
+					return ctrl.Result{}, err_policy
+				}
+
+				// Create the auth role
+				log.Info(fmt.Sprintf("Creating new authentication role now. Name (%s)", auth_role_name))
+				auth_role := map[string]interface{}{
+					"bound_service_account_names":      "default",
+					"bound_service_account_namespaces": fmt.Sprintf("%s", t.Spec.TenantName),
+					"policies":                         fmt.Sprintf("%s", auth_policy_name),
+				}
+				auth_role_path := fmt.Sprintf("auth/kubernetes/role/%s", auth_role_name)
+				_, err_role := client.Logical().Write(auth_role_path, auth_role)
+				if err_role != nil {
+					// We had an issue creating the engine.
+					CleanUpOnError(log, client, engine_name)
+					return ctrl.Result{}, err_role
 				}
 
 				// Record the transit engine name.
@@ -225,14 +261,30 @@ func DeleteVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		transit_mount_point := fmt.Sprintf("sys/mounts/%s", engine_name)
 		log.Info(fmt.Sprintf("Looking for Vault transit engine by name (%s) at location (%s).", engine_name, transit_mount_point))
 
+		// Set all required paths for the authentication
+		auth_policy_name := fmt.Sprintf("allow_%s", engine_name)
+		auth_role_name := fmt.Sprintf("%s", engine_name)
+		policy_path := fmt.Sprintf("sys/policy/%s", auth_policy_name)
+		auth_role_path := fmt.Sprintf("auth/kubernetes/role/%s", auth_role_name)
+
 		// Delete the transit engine if found.
 		_, err = client.Logical().Read(transit_mount_point)
 		if err == nil {
-			log.Info(fmt.Sprintf("Deleting Vault transit by name (%s) at the location (%s).", engine_name, transit_mount_point))
+			log.Info(fmt.Sprintf("Deleting Vault transit and associated authentication policy by name (%s) at the location (%s).", engine_name, transit_mount_point))
 			_, err := client.Logical().Delete(transit_mount_point)
 			if err != nil {
-				// We had an issue creating the engine.
+				// We had an issue deleting the engine.
 				return ctrl.Result{}, err
+			}
+			_, err_policy := client.Logical().Delete(policy_path)
+			if err_policy != nil {
+				// We had an issue deleting the policy.
+				return ctrl.Result{}, err_policy
+			}
+			_, err_role := client.Logical().Delete(auth_role_path)
+			if err_role != nil {
+				// We had an issue deleting the auth role.
+				return ctrl.Result{}, err_role
 			}
 		} else {
 			log.Info(fmt.Sprintf("A Vault transit by name (%s) was not found at the location (%s).", engine_name, transit_mount_point))
@@ -272,4 +324,14 @@ func GetVaultClient(log logr.Logger) (client *vault.Client, err error) {
 	}
 
 	return client, nil
+}
+
+func CleanUpOnError(log logr.Logger, client *vault.Client, engineName string) {
+	log.Info(fmt.Sprintf("Error creating the transit engine at %s, cleaning up artifacts.", engineName))
+	transit_mount_point := fmt.Sprintf("sys/mounts/%s", engineName)
+	policy_path := fmt.Sprintf("sys/policy/allow_%s", engineName)
+	auth_role_path := fmt.Sprintf("auth/kubernetes/role/%s", engineName)
+	client.Logical().Delete(transit_mount_point)
+	client.Logical().Delete(policy_path)
+	client.Logical().Delete(auth_role_path)
 }
