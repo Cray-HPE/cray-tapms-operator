@@ -327,10 +327,13 @@ func GetVaultClient(log logr.Logger) (client *vault.Client, err error) {
 }
 
 func CleanUpOnError(log logr.Logger, client *vault.Client, engineName string) {
+
 	log.Info(fmt.Sprintf("Error creating the transit engine at %s, cleaning up artifacts.", engineName))
+
 	transit_mount_point := fmt.Sprintf("sys/mounts/%s", engineName)
 	policy_path := fmt.Sprintf("sys/policy/allow_%s", engineName)
 	auth_role_path := fmt.Sprintf("auth/kubernetes/role/%s", engineName)
+
 	client.Logical().Delete(transit_mount_point)
 	client.Logical().Delete(policy_path)
 	client.Logical().Delete(auth_role_path)
