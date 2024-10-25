@@ -130,7 +130,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				// Create the auth policy
 				log.Info(fmt.Sprintf("Creating new authentication policy now. Name (%s)", auth_policy_name))
 				auth_policy := map[string]interface{}{
-					"policy": fmt.Sprintf("path \"%s\" {\n  capabilities = [\"read\", \"update\", \"list\"]\n}", engine_name),
+					"policy": fmt.Sprintf("path \"%s/*\" {\n  capabilities = [\"read\", \"update\", \"list\"]\n}", engine_name),
 				}
 				policy_path := fmt.Sprintf("sys/policy/%s", auth_policy_name)
 				_, err_policy := client.Logical().Write(policy_path, auth_policy)
