@@ -309,6 +309,7 @@ spec:
                       type: string
                   type: object
                 type: array
+                default: []
               tenantkms:
                 description: '@Description The Vault KMS transit engine specification
                   for the tenant'
