@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2025 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -62,19 +62,7 @@ type TenantHook struct {
 	BlockingCall bool     `json:"blockingcall"`
 	Url          string   `json:"url,omitempty" example:"http://<url>:<port>"`
 	EventTypes   []string `json:"eventtypes,omitempty" example:"CREATE, UPDATE, DELETE"`
-	//+kubebuilder:validation:Optional
-	HookCredentials HookCredentials `json:"hookcredentials,omitempty"`
 } // @name TenantHook
-
-// @Description Optional credentials for calling webhook
-type HookCredentials struct {
-	//+kubebuilder:validation:Optional
-	// Optional Kubernetes secret name containing credentials for calling webhook
-	SecretName string `json:"secretname,omitempty"`
-	//+kubebuilder:validation:Optional
-	// Optional Kubernetes namespace for the secret
-	SecretNamespace string `json:"secretnamespace,omitempty"`
-} // @name HookCredentials
 
 // @Description The Vault KMS transit engine specification for the tenant
 type TenantKmsResource struct {

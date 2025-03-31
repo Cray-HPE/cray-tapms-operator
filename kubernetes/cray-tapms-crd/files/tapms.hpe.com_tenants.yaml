@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2023-2024 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2023-2025 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -303,18 +303,6 @@ spec:
                       items:
                         type: string
                       type: array
-                    hookcredentials:
-                      description: '@Description Optional credentials for calling
-                        webhook'
-                      properties:
-                        secretname:
-                          description: Optional Kubernetes secret name containing
-                            credentials for calling webhook
-                          type: string
-                        secretnamespace:
-                          description: Optional Kubernetes namespace for the secret
-                          type: string
-                      type: object
                     name:
                       type: string
                     url:
@@ -390,18 +378,6 @@ spec:
                       items:
                         type: string
                       type: array
-                    hookcredentials:
-                      description: '@Description Optional credentials for calling
-                        webhook'
-                      properties:
-                        secretname:
-                          description: Optional Kubernetes secret name containing
-                            credentials for calling webhook
-                          type: string
-                        secretnamespace:
-                          description: Optional Kubernetes namespace for the secret
-                          type: string
-                      type: object
                     name:
                       type: string
                     url:
