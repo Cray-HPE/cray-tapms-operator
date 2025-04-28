@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# (C) Copyright 2023 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2023-2025 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -23,20 +23,6 @@
 #
 basePath: /apis/tapms/
 definitions:
-  HookCredentials:
-    description: Optional credentials for calling webhook
-    properties:
-      secretname:
-        description: |-
-          +kubebuilder:validation:Optional
-          Optional Kubernetes secret name containing credentials for calling webhook
-        type: string
-      secretnamespace:
-        description: |-
-          +kubebuilder:validation:Optional
-          Optional Kubernetes namespace for the secret
-        type: string
-    type: object
   ResponseError:
     properties:
       message:
@@ -73,10 +59,6 @@ definitions:
         items:
           type: string
         type: array
-      hookcredentials:
-        allOf:
-        - $ref: '#/definitions/HookCredentials'
-        description: +kubebuilder:validation:Optional
       name:
         type: string
       url:

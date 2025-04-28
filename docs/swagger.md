@@ -65,15 +65,6 @@ Get a tenant's spec/status
 ---
 ### Models
 
-#### HookCredentials
-
-Optional credentials for calling webhook
-
-| Name | Type | Description | Required |
-| ---- | ---- | ----------- | -------- |
-| secretname | string | +kubebuilder:validation:Optional Optional Kubernetes secret name containing credentials for calling webhook | No |
-| secretnamespace | string | +kubebuilder:validation:Optional Optional Kubernetes namespace for the secret | No |
-
 #### ResponseError
 
 | Name | Type | Description | Required |
@@ -97,7 +88,6 @@ The webhook definition to call an API for tenant CRUD operations
 | ---- | ---- | ----------- | -------- |
 | blockingcall | boolean | +kubebuilder:default:=false +kubebuilder:validation:Optional | No |
 | eventtypes | [ string ] | *Example:* `["CREATE"," UPDATE"," DELETE"]` | No |
-| hookcredentials | [HookCredentials](#hookcredentials) | +kubebuilder:validation:Optional | No |
 | name | string |  | No |
 | url | string | *Example:* `"http://<url>:<port>"` | No |
 
@@ -109,7 +99,7 @@ The Vault KMS transit engine specification for the tenant
 | ---- | ---- | ----------- | -------- |
 | enablekms | boolean | +kubebuilder:default:=false +kubebuilder:validation:Optional Create a Vault transit engine for the tenant if this setting is true. | No |
 | keyname | string | +kubebuilder:default:=key1 +kubebuilder:validation:Optional Optional name for the transit engine key. | No |
-| keytype | string | +kubebuilder:default:=rsa-3072 +kubebuilder:validation:Optional Optional key type. See <https://developer.hashicorp.com/vault/api-docs/secret/transit#type> The default of 3072 is the minimal permitted under the Commercial National Security Algorithm (CNSA) 1.0 suite. | No |
+| keytype | string | +kubebuilder:default:=rsa-3072 +kubebuilder:validation:Optional Optional key type. See https://developer.hashicorp.com/vault/api-docs/secret/transit#type The default of 3072 is the minimal permitted under the Commercial National Security Algorithm (CNSA) 1.0 suite. | No |
 
 #### TenantKmsStatus
 

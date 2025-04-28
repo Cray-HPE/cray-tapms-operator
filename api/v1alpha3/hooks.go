@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2022-2024 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2022-2025 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -112,15 +112,27 @@ func CallHook(hook TenantHook, tenant *Tenant, log logr.Logger, event string) er
 	HTTPClient := NewHttpClient()
 	resp, err := HTTPClient.Do(req)
 	if err != nil {
-		return err
+		if hook.BlockingCall {
+			return err
+		} else {
+			// "Notify" hooks do not cause tenant operations to fail
+			Log.Info(fmt.Sprintf("%s call to '%s' hook at url %s returned an error: %s", blockText, hook.Name, hook.Url, err.Error()))
+			return nil
+		}
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("%s call to '%s' hook at url %s returned a non-200 response code: %d", blockText, hook.Name, hook.Url, resp.StatusCode)
+		if hook.BlockingCall {
+			return fmt.Errorf("%s call to '%s' hook at url %s returned a non-200 response code: %d", blockText, hook.Name, hook.Url, resp.StatusCode)
+		} else {
+			// "Notify" hooks do not cause tenant operations to fail
+			Log.Info(fmt.Sprintf("%s call to '%s' hook at url %s returned a non-200 response code: %d", blockText, hook.Name, hook.Url, resp.StatusCode))
+		}
+	} else {
+		Log.Info(fmt.Sprintf("%s call to '%s' hook at url %s called successfully", blockText, hook.Name, hook.Url))
 	}
-	Log.Info(fmt.Sprintf("%s call to '%s' hook at url %s called successfully", blockText, hook.Name, hook.Url))
 
 	return nil
 }

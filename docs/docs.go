@@ -2,7 +2,7 @@
  *
  *  MIT License
  *
- *  (C) Copyright 2023 Hewlett Packard Enterprise Development LP
+ *  (C) Copyright 2023-2025 Hewlett Packard Enterprise Development LP
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a
  *  copy of this software and associated documentation files (the "Software"),
@@ -187,20 +187,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "HookCredentials": {
-            "description": "Optional credentials for calling webhook",
-            "type": "object",
-            "properties": {
-                "secretname": {
-                    "description": "+kubebuilder:validation:Optional\nOptional Kubernetes secret name containing credentials for calling webhook",
-                    "type": "string"
-                },
-                "secretnamespace": {
-                    "description": "+kubebuilder:validation:Optional\nOptional Kubernetes namespace for the secret",
-                    "type": "string"
-                }
-            }
-        },
         "ResponseError": {
             "type": "object",
             "properties": {
@@ -252,14 +238,6 @@ const docTemplate = `{
                         "CREATE",
                         " UPDATE",
                         " DELETE"
-                    ]
-                },
-                "hookcredentials": {
-                    "description": "+kubebuilder:validation:Optional",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/HookCredentials"
-                        }
                     ]
                 },
                 "name": {
