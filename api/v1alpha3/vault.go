@@ -227,8 +227,41 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 
 		} else {
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
-			// TODO: Update the k8s status (t.Status.TenantKmsStatus.PublicKey) here again
-			// to pick up any new key(s) that could have been created by rotation.
+			// Pull the key that is saved in vault to check if it matches what is
+			// saved in the tenant status
+
+			// Read the transit key metadata
+			transit_key_data, err = client.Logical().Read(transit_key_mount_point)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			newJson, err := json.Marshal(transit_key_data.Data["keys"])
+			exsistingJson := t.Status.TenantKmsStatus.PublicKey
+
+			if transit_key_data == nil {
+				log.Info(fmt.Sprintf("Nil transit key data for mount point(%s)", transit_key_mount_point))
+				return ctrl.Result{}, err
+			} else if string(newJson) == exsistingJson {
+				log.Info(fmt.Sprintf("Transit Key matches exisiting saved key"))
+				return ctrl.Result{}, nil
+			} else {
+				// Display the transit key metadata as json in the k8s tapms status.
+				// Note: to see more detail such as the min/max supported encryption version,
+				// marshal the entire transit_key_data structure. This will be useful when
+				// tenant admins start to work with key rotation. For now, this form will display whatever
+				// data is available for "keys". In this form, if someone had performed key
+				// rotation in Vault, multiple keys will be listed. It will be up to the tenant
+				// admin to know which key to use since any key rotation is outisde of scope of
+				// what tapms is responsible for managing.
+				jsonStr, err := json.Marshal(transit_key_data.Data["keys"])
+				if err != nil {
+					fmt.Printf("Error: %s", err.Error())
+				} else {
+					log.Info(fmt.Sprintf("Found new key for tenant (%s), updating", t.Spec.TenantName))
+					t.Status.TenantKmsStatus.PublicKey = string(jsonStr)
+				}
+			}
 		}
 	} else {
 		// The case where t.Spec.TenantKmsResource.Enabled=false
