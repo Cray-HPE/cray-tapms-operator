@@ -229,6 +229,41 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
 			// TODO: Update the k8s status (t.Status.TenantKmsStatus.PublicKey) here again
 			// to pick up any new key(s) that could have been created by rotation.
+			// Pull the key that is saved in vault to check if it matches what is
+			// saved in the tenant status
+
+			// Read the transit key metadata
+			transit_key_data, err = client.Logical().Read(transit_key_mount_point)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			newJson, err := json.Marshal(transit_key_data.Data["keys"])
+			exsistingJson := t.Status.TenantKmsStatus.PublicKey
+
+			if transit_key_data == nil {
+				log.Info(fmt.Sprintf("Nil transit key data for mount point(%s)", transit_key_mount_point))
+				return ctrl.Result{}, err
+			} else if string(newJson) == exsistingJson {
+				log.Info(fmt.Sprintf("Transit Key matches exisiting saved key"))
+				return ctrl.Result{}, nil
+			} else {
+				// Display the transit key metadata as json in the k8s tapms status.
+				// Note: to see more detail such as the min/max supported encryption version,
+				// marshal the entire transit_key_data structure. This will be useful when
+				// tenant admins start to work with key rotation. For now, this form will display whatever
+				// data is available for "keys". In this form, if someone had performed key
+				// rotation in Vault, multiple keys will be listed. It will be up to the tenant
+				// admin to know which key to use since any key rotation is outisde of scope of
+				// what tapms is responsible for managing.
+				jsonStr, err := json.Marshal(transit_key_data.Data["keys"])
+				if err != nil {
+					fmt.Printf("Error: %s", err.Error())
+				} else {
+					log.Info(fmt.Sprintf("Found new key for tenant (%s), updating", t.Spec.TenantName))
+					t.Status.TenantKmsStatus.PublicKey = string(jsonStr)
+				}
+			}
 		}
 	} else {
 		// The case where t.Spec.TenantKmsResource.Enabled=false
@@ -337,4 +372,41 @@ func CleanUpOnError(log logr.Logger, client *vault.Client, engineName string) {
 	client.Logical().Delete(transit_mount_point)
 	client.Logical().Delete(policy_path)
 	client.Logical().Delete(auth_role_path)
+}
+
+// This method retrieves the Vault key for a specific tenant
+func FetchVaultKey(ctx context.Context, log logr.Logger, tenantName string) (*vault.Secret, error) {
+	// Setting up Vault Client bloew to test the error
+	client, err := vault.NewClient(vault.DefaultConfig())
+	if err != nil {
+		log.Error(err, "Failed to create Vault client")
+		return nil, err
+	}
+
+	// Define the Vault transit key mount point
+	transitKeyMountPoint := fmt.Sprintf("transit/keys/%s", tenantName)
+
+	// Read the transit key metadata from Vault
+	transitKeyData, err := client.Logical().Read(transitKeyMountPoint)
+	if err != nil {
+		log.Error(err, "Failed to read Vault key")
+		return nil, err
+	}
+
+	// If no data is found, return an error
+	if transitKeyData == nil {
+		log.Info(fmt.Sprintf("No transit key data found for mount point %s", transitKeyMountPoint))
+		return nil, fmt.Errorf("no transit key data found for tenant %s", tenantName)
+	}
+	// Validate key data
+	if transitKeyData.Data["keys"] == nil {
+		log.Error(nil, "Vault key data is empty or malformed")
+		return nil, fmt.Errorf("malformed or empty Vault key data for tenant %s", tenantName)
+	}
+
+	// Extra Log data to check
+	jsonStr, _ := json.Marshal(transitKeyData.Data["keys"])
+	log.Info(fmt.Sprintf("Fetched Vault key data for tenant %s: %s", tenantName, string(jsonStr)))
+
+	return transitKeyData, nil
 }
