@@ -23,7 +23,7 @@
 #
 apiVersion: v2
 name: cray-tapms-crd
-version: 1.9.1
+version: 1.9.4
 description: Tenant and Partition Management Custom Resource Definition Chart
 keywords:
   - cray-tapms
