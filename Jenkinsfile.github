@@ -46,8 +46,10 @@ pipeline {
             steps {
                 script {
                     publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
-                    publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
-                    publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
+
+            // Publish only the operator Helm chart as a fix to duplicate problem
+            // This should work as  cray-tapms-operator chart should already be included in the CRD definitions (via dependencies or templates)
+            publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
                 }
             }
         }
