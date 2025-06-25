@@ -105,7 +105,7 @@ type TenantSpec struct {
 	TenantKmsResource TenantKmsResource `json:"tenantkms"`
 	//+kubebuilder:validation:Optional
 	TenantHooks []TenantHook `json:"tenanthooks"`
-	// new boolean field that defaults to false and can be toggled true when vault key rotation occurs
+	//+kubebuilder:validation:Optional
 	RequiresVaultKeyUpdate bool `json:"requiresVaultKeyUpdate,omitempty"`
 } //@name TenantSpec
 
