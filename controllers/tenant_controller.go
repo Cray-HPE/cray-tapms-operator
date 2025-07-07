@@ -26,10 +26,8 @@
 
 package controllers
 
-// added encoding json import
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -81,41 +79,6 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	isTenantMarkedToBeDeleted := tenant.GetDeletionTimestamp() != nil
 	if !isTenantMarkedToBeDeleted {
 
-		// new conditional to check if a key update is needed
-		if tenant.Spec.RequiresVaultKeyUpdate {
-			log.Info(fmt.Sprintf("Tenant %s marked for Vault key update. Fetching latest key.", tenant.Spec.TenantName))
-			transitKeyData, err := alphav3.FetchVaultKey(ctx, log, tenant.Spec.TenantName)
-			if err != nil {
-				log.Error(err, "Failed to fetch Vault key")
-				return ctrl.Result{}, err
-			}
-			if transitKeyData == nil {
-				log.Info("No transit key data found in Vault")
-				return ctrl.Result{}, nil
-			}
-			// Update Tenant status with the latest Vault key
-			jsonStr, err := json.Marshal(transitKeyData.Data["keys"])
-			if err != nil {
-				log.Error(err, "Failed to marshal Vault key data")
-				return ctrl.Result{}, err
-			}
-			// Reset flag here if vault gets reset again
-			tenant.Status.TenantKmsStatus.PublicKey = string(jsonStr)
-			tenant.Spec.RequiresVaultKeyUpdate = false
-
-			if err := r.Status().Update(ctx, tenant); err != nil {
-				log.Error(err, "Failed to update Tenant status with new Vault key")
-				return ctrl.Result{}, err
-			}
-			if err := r.Update(ctx, tenant); err != nil {
-
-				log.Error(err, "Failed to reset requiresVaultKeyUpdate flag")
-				return ctrl.Result{}, err
-			}
-
-			log.Info(fmt.Sprintf("Updated Tenant %s with the latest Vault key.", tenant.Spec.TenantName))
-		}
-		// end of new changes
 		tenant.Spec.State = "Deploying"
 		result, err := alphav3.CreateSubanchorNs(ctx, log, r.Client, "tenants", tenant.Spec.TenantName)
 		if err != nil {
