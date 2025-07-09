@@ -248,9 +248,8 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				exsistingJson := t.Status.TenantKmsStatus.PublicKey
 				log.Info(fmt.Sprintf("NewJson value is: (%s)", newJson))
 				log.Info(fmt.Sprintf("existingJson value is: (%s)", exsistingJson))
-				// update field to false
-				t.Spec.RequiresVaultKeyUpdate = false
-				log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate after update to false from vault: %v", t.Spec.RequiresVaultKeyUpdate))
+				// No longer updating field to false on here
+				//log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate after update to false from vault: %v", t.Spec.RequiresVaultKeyUpdate))
 
 				// new conditional to try
 
