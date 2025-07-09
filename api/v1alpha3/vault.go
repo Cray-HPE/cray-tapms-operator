@@ -230,13 +230,14 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		} else {
 
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
+			log.Info(fmt.Sprintf("Current value of requiresVaultKeyUpdate from vault: %v", t.Spec.RequiresVaultKeyUpdate))
 			// new conditional to check if keys need to be updated
 			if t.Spec.RequiresVaultKeyUpdate {
 				// TODO: Update the k8s status (t.Status.TenantKmsStatus.PublicKey) here again
 				// to pick up any new key(s) that could have been created by rotation.
 				// Pull the key that is saved in vault to check if it matches what is
 				// saved in the tenant status
-
+				fmt.Println("Test to make sure inside conditional was hit.")
 				// Read the transit key metadata
 				transit_key_data, err = client.Logical().Read(transit_key_mount_point)
 				if err != nil {
@@ -245,9 +246,13 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 
 				newJson, err := json.Marshal(transit_key_data.Data["keys"])
 				exsistingJson := t.Status.TenantKmsStatus.PublicKey
-
+				log.Info(fmt.Sprintf("NewJson value is: (%s)", newJson))
+				log.Info(fmt.Sprintf("existingJson value is: (%s)", exsistingJson))
 				// update field to false
 				t.Spec.RequiresVaultKeyUpdate = false
+				log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate after update to false from vault: %v", t.Spec.RequiresVaultKeyUpdate))
+
+				// new conditional to try
 
 				if transit_key_data == nil {
 					log.Info(fmt.Sprintf("Nil transit key data for mount point(%s)", transit_key_mount_point))
@@ -384,39 +389,39 @@ func CleanUpOnError(log logr.Logger, client *vault.Client, engineName string) {
 	client.Logical().Delete(auth_role_path)
 }
 
-// This method retrieves the Vault key for a specific tenant
-func FetchVaultKey(ctx context.Context, log logr.Logger, tenantName string) (*vault.Secret, error) {
-	// Setting up Vault Client bloew to test the error
-	client, err := vault.NewClient(vault.DefaultConfig())
-	if err != nil {
-		log.Error(err, "Failed to create Vault client")
-		return nil, err
-	}
+// // This method retrieves the Vault key for a specific tenant
+// func FetchVaultKey(ctx context.Context, log logr.Logger, tenantName string) (*vault.Secret, error) {
+// 	// Setting up Vault Client bloew to test the error
+// 	client, err := vault.NewClient(vault.DefaultConfig())
+// 	if err != nil {
+// 		log.Error(err, "Failed to create Vault client")
+// 		return nil, err
+// 	}
 
-	// Define the Vault transit key mount point
-	transitKeyMountPoint := fmt.Sprintf("transit/keys/%s", tenantName)
+// 	// Define the Vault transit key mount point
+// 	transitKeyMountPoint := fmt.Sprintf("transit/keys/%s", tenantName)
 
-	// Read the transit key metadata from Vault
-	transitKeyData, err := client.Logical().Read(transitKeyMountPoint)
-	if err != nil {
-		log.Error(err, "Failed to read Vault key")
-		return nil, err
-	}
+// 	// Read the transit key metadata from Vault
+// 	transitKeyData, err := client.Logical().Read(transitKeyMountPoint)
+// 	if err != nil {
+// 		log.Error(err, "Failed to read Vault key")
+// 		return nil, err
+// 	}
 
-	// If no data is found, return an error
-	if transitKeyData == nil {
-		log.Info(fmt.Sprintf("No transit key data found for mount point %s", transitKeyMountPoint))
-		return nil, fmt.Errorf("no transit key data found for tenant %s", tenantName)
-	}
-	// Validate key data
-	if transitKeyData.Data["keys"] == nil {
-		log.Error(nil, "Vault key data is empty or malformed")
-		return nil, fmt.Errorf("malformed or empty Vault key data for tenant %s", tenantName)
-	}
+// 	// If no data is found, return an error
+// 	if transitKeyData == nil {
+// 		log.Info(fmt.Sprintf("No transit key data found for mount point %s", transitKeyMountPoint))
+// 		return nil, fmt.Errorf("no transit key data found for tenant %s", tenantName)
+// 	}
+// 	// Validate key data
+// 	if transitKeyData.Data["keys"] == nil {
+// 		log.Error(nil, "Vault key data is empty or malformed")
+// 		return nil, fmt.Errorf("malformed or empty Vault key data for tenant %s", tenantName)
+// 	}
 
-	// Extra Log data to check
-	jsonStr, _ := json.Marshal(transitKeyData.Data["keys"])
-	log.Info(fmt.Sprintf("Fetched Vault key data for tenant %s: %s", tenantName, string(jsonStr)))
+// 	// Extra Log data to check
+// 	jsonStr, _ := json.Marshal(transitKeyData.Data["keys"])
+// 	log.Info(fmt.Sprintf("Fetched Vault key data for tenant %s: %s", tenantName, string(jsonStr)))
 
-	return transitKeyData, nil
-}
+// 	return transitKeyData, nil
+// }
