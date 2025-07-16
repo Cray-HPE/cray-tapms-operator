@@ -127,15 +127,21 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		result, err = alphav3.CreateVaultTransit(ctx, log, tenant)
 		// reset the field from the tenant controller
 		log.Info("Brett new print statement to make sure new version is active")
-		log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate from tenant controller before update to false: %v", tenant.Spec.RequiresVaultKeyUpdate))
-		if tenant.Spec.RequiresVaultKeyUpdate {
-			tenant.Spec.RequiresVaultKeyUpdate = false
-			if err := r.Client.Update(ctx, tenant); err != nil {
-				log.Error(err, "Failed to reset requiresVaultKeyUpdate field in tenant spec")
-				return ctrl.Result{}, err
-			}
-			log.Info(fmt.Sprintf("requiresVaultKeyUpdate reset to false for tenant (%s)", tenant.Name))
-		}
+		log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate from tenant controller before conditional: %v", tenant.Spec.RequiresVaultKeyUpdate))
+		// if tenant.Spec.RequiresVaultKeyUpdate {
+		// 	tenant.Spec.RequiresVaultKeyUpdate = false
+		// 	// if err := r.Client.Update(ctx, tenant); err != nil {
+		// 	// 	log.Error(err, "Failed to reset requiresVaultKeyUpdate field in tenant spec")
+		// 	// 	return ctrl.Result{}, err
+		// 	// }
+		// 	// err = r.Update(ctx, tenant)
+		// 	// if err != nil {
+		// 	// 	log.Error(err, "Failed to reset requiresVaultKeyUpdate field in tenant spec")
+		// 	// 	return ctrl.Result{}, err
+		// 	// }
+		// 	log.Info(fmt.Sprintf("requiresVaultKeyUpdate tenant controller conditional hit check (%s)", tenant.Name))
+		// }
+
 		// end of new test code
 		if err != nil {
 			log.Error(err, "Failed to create/update Vault transit")
