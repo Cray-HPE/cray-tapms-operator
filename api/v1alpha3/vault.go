@@ -35,6 +35,7 @@ import (
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/google/uuid"
 	vault "github.com/hashicorp/vault/api"
@@ -57,8 +58,23 @@ var tapms_transit_prefix = "cray-tenant-"
 // New global variable needed for making the changes to the spec permanent
 var kubeClient client.Client
 
+// init method is needed for new code to properly update the tenant spec
+func init() {
+	kubeConfig := config.GetConfigOrDie()
+	kubeClient, err := client.New(kubeConfig, client.Options{})
+
+	// make sure kubeClient is not null
+	if kubeClient != nil {
+		fmt.Sprintf("It is not null")
+	}
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize Kubernetes client: %v", err))
+	}
+}
+
 // Create the tenant Vault transit engine
 func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
+
 	fmt.Println("CreateVaultTransit called")
 	log.Info(fmt.Sprintf("CreateVaultTransit called for tenant (%s)", t.Spec.TenantName))
 
@@ -281,9 +297,12 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 					}
 				}
 				// start of new code
-				log.Info(fmt.Sprintf("Current value of the field of requiresVaultKeyUpdate from vault before update: %v", t.Spec.RequiresVaultKeyUpdate))
+				log.Info(fmt.Sprintf("Current field value of requiresVaultKeyUpdate from vault before update: %v", t.Spec.RequiresVaultKeyUpdate))
 				t.Spec.RequiresVaultKeyUpdate = false
-				log.Info(fmt.Sprintf("Current value of the field of requiresVaultKeyUpdate from vault after update: %v", t.Spec.RequiresVaultKeyUpdate))
+				log.Info(fmt.Sprintf("Current field value of requiresVaultKeyUpdate from vault after update: %v", t.Spec.RequiresVaultKeyUpdate))
+				if kubeClient == nil {
+					return ctrl.Result{}, fmt.Errorf("global kubeClient is not initialized")
+				}
 				err = kubeClient.Update(ctx, t)
 				if err != nil {
 					log.Error(err, "Within vault failed to update Tenant resource after setting requiresVaultKeyUpdate to false")

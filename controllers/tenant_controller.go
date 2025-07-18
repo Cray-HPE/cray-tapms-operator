@@ -126,7 +126,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Info("Creating/updating Vault transit for: " + tenant.Spec.TenantName)
 		result, err = alphav3.CreateVaultTransit(ctx, log, tenant)
 		// reset the field from the tenant controller
-		log.Info("Brett new print statement to make sure new version is active")
+		log.Info("Brett next print statement to make sure new version is active")
 		log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate from tenant controller before conditional: %v", tenant.Spec.RequiresVaultKeyUpdate))
 		// if tenant.Spec.RequiresVaultKeyUpdate {
 		// 	tenant.Spec.RequiresVaultKeyUpdate = false
