@@ -60,13 +60,28 @@ var kubeClient client.Client
 
 // init method is needed for new code to properly update the tenant spec
 func init() {
+	fmt.Sprintf("Init was reached")
 	kubeConfig := config.GetConfigOrDie()
 	kubeClient, err := client.New(kubeConfig, client.Options{})
 
-	// make sure kubeClient is not null
 	if kubeClient != nil {
 		fmt.Sprintf("It is not null")
 	}
+
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize Kubernetes client: %v", err))
+	}
+}
+
+func starter() {
+	fmt.Sprintf("Starter was reached")
+	kubeConfig := config.GetConfigOrDie()
+	kubeClient, err := client.New(kubeConfig, client.Options{})
+
+	if kubeClient != nil {
+		fmt.Sprintf("It is not null")
+	}
+
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize Kubernetes client: %v", err))
 	}
@@ -297,16 +312,19 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 					}
 				}
 				// start of new code
-				log.Info(fmt.Sprintf("Current field value of requiresVaultKeyUpdate from vault before update: %v", t.Spec.RequiresVaultKeyUpdate))
+				log.Info(fmt.Sprintf("Current value of field requiresVaultKeyUpdate from vault before update: %v", t.Spec.RequiresVaultKeyUpdate))
 				t.Spec.RequiresVaultKeyUpdate = false
-				log.Info(fmt.Sprintf("Current field value of requiresVaultKeyUpdate from vault after update: %v", t.Spec.RequiresVaultKeyUpdate))
+				log.Info(fmt.Sprintf("Current value of field requiresVaultKeyUpdate from vault after update: %v", t.Spec.RequiresVaultKeyUpdate))
+				starter()
 				if kubeClient == nil {
-					return ctrl.Result{}, fmt.Errorf("global kubeClient is not initialized")
+					log.Error(nil, "kubeClient is nil. Ensure it is properly initialized in the init() method.")
+					return ctrl.Result{}, fmt.Errorf("global kubeClient is not initialized: kubeClient is nil in CreateVaultTransit. Check the init() method in vault.go")
 				}
+
 				err = kubeClient.Update(ctx, t)
 				if err != nil {
-					log.Error(err, "Within vault failed to update Tenant resource after setting requiresVaultKeyUpdate to false")
-					return ctrl.Result{}, err
+					log.Error(err, fmt.Sprintf("Failed to update Tenant resource: %v. Tenant details: %+v", err, t))
+					return ctrl.Result{}, fmt.Errorf("Within vault failed to update Tenant resource. Error: %v. Tenant details: %+v", err, t)
 				}
 
 				log.Info(fmt.Sprintf("Current value of requiresVaultKeyUpdate from vault after global update: %v", t.Spec.RequiresVaultKeyUpdate))
