@@ -34,6 +34,8 @@ import (
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/google/uuid"
 	vault "github.com/hashicorp/vault/api"
@@ -53,8 +55,51 @@ var k8s_service_account_token_path = "/var/run/secrets/kubernetes.io/serviceacco
 // The tenant Vault transit engine name prefix.
 var tapms_transit_prefix = "cray-tenant-"
 
+// New global variable needed for making the changes to the spec permanent
+var kubeClient client.Client
+
+// init method is needed for new code to properly update the tenant spec
+func init() {
+	fmt.Println("Init was reached")
+
+	kubeConfig := config.GetConfigOrDie()
+	fmt.Println("Init: Kubernetes configuration successfully retrieved")
+
+	var err error
+	kubeClient, err = client.New(kubeConfig, client.Options{})
+	if err != nil {
+		panic(fmt.Sprintf("Init: Failed to initialize Kubernetes client: %v", err))
+	}
+
+	if kubeClient != nil {
+		fmt.Println("Init: kubeClient successfully initialized")
+	} else {
+		fmt.Println("Init: kubeClient is still nil after initialization")
+	}
+}
+
+func starter() {
+	fmt.Println("Starter was reached")
+
+	kubeConfig := config.GetConfigOrDie()
+	fmt.Println("Starter: Kubernetes configuration successfully retrieved")
+
+	var err error
+	kubeClient, err = client.New(kubeConfig, client.Options{})
+	if err != nil {
+		panic(fmt.Sprintf("Starter: Failed to initialize Kubernetes client: %v", err))
+	}
+
+	if kubeClient != nil {
+		fmt.Println("Starter: kubeClient successfully initialized")
+	} else {
+		fmt.Println("Starter: kubeClient is still nil after initialization")
+	}
+}
+
 // Create the tenant Vault transit engine
 func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
+
 	fmt.Println("CreateVaultTransit called")
 	log.Info(fmt.Sprintf("CreateVaultTransit called for tenant (%s)", t.Spec.TenantName))
 
@@ -173,6 +218,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 		}
 
 		// Check that we have the expected default encryption key. Create that if not found.
+
 		log.Info(fmt.Sprintf("Checking for the key %s in the transit engine %s", transit_engine_key_name, engine_name))
 
 		// This should be the same as calling "vault read cray-tenant-<name>/keys/<key-name>"
@@ -205,6 +251,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+
 			if transit_key_data == nil {
 				log.Info(fmt.Sprintf("Nil transit key data for mount point(%s)", transit_key_mount_point))
 				return ctrl.Result{}, err
@@ -226,19 +273,108 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			}
 
 		} else {
+
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
-			// TODO: Update the k8s status (t.Status.TenantKmsStatus.PublicKey) here again
-			// to pick up any new key(s) that could have been created by rotation.
+			log.Info(fmt.Sprintf("Current value of requiresVaultKeyUpdate from vault: %v", t.Spec.RequiresVaultKeyUpdate))
+			// new conditional to check if keys need to be updated
+
+			if t.Spec.RequiresVaultKeyUpdate {
+				// TODO: Update the k8s status (t.Status.TenantKmsStatus.PublicKey) here again
+				// to pick up any new key(s) that could have been created by rotation.
+				// Pull the key that is saved in vault to check if it matches what is
+				// saved in the tenant status
+				fmt.Println("New test to make sure inside conditional was hit.")
+				// Read the transit key metadata
+				transit_key_data, err = client.Logical().Read(transit_key_mount_point)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+
+				newJson, err := json.Marshal(transit_key_data.Data["keys"])
+				exsistingJson := t.Status.TenantKmsStatus.PublicKey
+				log.Info(fmt.Sprintf("NewJson value is: (%s)", newJson))
+				log.Info(fmt.Sprintf("existingJson value is: (%s)", exsistingJson))
+				// No longer updating field to false on here
+				//log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate after update to false from vault: %v", t.Spec.RequiresVaultKeyUpdate))
+
+				// new conditional to try
+
+				if transit_key_data == nil {
+					log.Info(fmt.Sprintf("Nil transit key data for mount point(%s)", transit_key_mount_point))
+					return ctrl.Result{}, err
+				} else if string(newJson) == exsistingJson {
+					fmt.Println("Transit Key matches exisiting saved key")
+					return ctrl.Result{}, nil
+				} else {
+					// Display the transit key metadata as json in the k8s tapms status.
+					// Note: to see more detail such as the min/max supported encryption version,
+					// marshal the entire transit_key_data structure. This will be useful when
+					// tenant admins start to work with key rotation. For now, this form will display whatever
+					// data is available for "keys". In this form, if someone had performed key
+					// rotation in Vault, multiple keys will be listed. It will be up to the tenant
+					// admin to know which key to use since any key rotation is outisde of scope of
+					// what tapms is responsible for managing.
+					jsonStr, err := json.Marshal(transit_key_data.Data["keys"])
+					if err != nil {
+						fmt.Printf("Error: %s", err.Error())
+					} else {
+						log.Info(fmt.Sprintf("Found new key for tenant (%s), updating", t.Spec.TenantName))
+						t.Status.TenantKmsStatus.PublicKey = string(jsonStr)
+					}
+				}
+				// start of new code
+				log.Info(fmt.Sprintf("Current value of field requiresVaultKeyUpdate from vault before update: %v", t.Spec.RequiresVaultKeyUpdate))
+				t.Spec.RequiresVaultKeyUpdate = false
+				log.Info(fmt.Sprintf("Current value of field requiresVaultKeyUpdate from vault after update: %v", t.Spec.RequiresVaultKeyUpdate))
+				starter()
+				if kubeClient == nil {
+					log.Error(nil, "kubeClient is nil. Ensure it is properly initialized in the init() method.")
+					return ctrl.Result{}, fmt.Errorf("global kubeClient is not initialized: kubeClient is nil in CreateVaultTransit. Check the init() method in vault.go")
+				}
+
+				err = kubeClient.Update(ctx, t)
+				if err != nil {
+					log.Error(err, fmt.Sprintf("Failed to update Tenant resource: %v. Tenant details: %+v", err, t))
+					return ctrl.Result{}, fmt.Errorf("Within vault failed to update Tenant resource. Error: %v. Tenant details: %+v", err, t)
+				}
+
+				log.Info(fmt.Sprintf("Current value of requiresVaultKeyUpdate from vault after global update: %v", t.Spec.RequiresVaultKeyUpdate))
+
+				log.Info("Within vault successfully updated Tenant resource after setting requiresVaultKeyUpdate to false")
+
+				// potential alternate solution if above does not work
+				// err = UpdateTenant(ctx, kubeClient, t)
+				// if err != nil {
+				// 	log.Error(err, "Failed to update Tenant resource after setting requiresVaultKeyUpdate to false")
+				// 	return ctrl.Result{}, err
+				// }
+
+				// log.Info("Successfully updated Tenant resource after setting requiresVaultKeyUpdate to false")
+			}
 		}
+
+		log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate after update to false from vault: %v", t.Spec.RequiresVaultKeyUpdate))
+		// end of new code
+
 	} else {
 		// The case where t.Spec.TenantKmsResource.Enabled=false
 		log.Info(fmt.Sprintf("No transit engine was requested for tenant (%s)", t.Spec.TenantName))
 	}
+
 	log.Info(fmt.Sprintf("CreateVaultTransit complete for tenant (%s)", t.Spec.TenantName))
 
 	// On success
 	return ctrl.Result{}, nil
 }
+
+// helper method I might use later
+// func UpdateTenant(ctx context.Context, kubeClient client.Client, tenant *Tenant) error {
+// 	err := kubeClient.Update(ctx, tenant)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to update Tenant: %w", err)
+// 	}
+// 	return nil
+// }
 
 // Delete the tenant Vault transit engine
 func DeleteVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
@@ -338,3 +474,40 @@ func CleanUpOnError(log logr.Logger, client *vault.Client, engineName string) {
 	client.Logical().Delete(policy_path)
 	client.Logical().Delete(auth_role_path)
 }
+
+// // This method retrieves the Vault key for a specific tenant
+// func FetchVaultKey(ctx context.Context, log logr.Logger, tenantName string) (*vault.Secret, error) {
+// 	// Setting up Vault Client bloew to test the error
+// 	client, err := vault.NewClient(vault.DefaultConfig())
+// 	if err != nil {
+// 		log.Error(err, "Failed to create Vault client")
+// 		return nil, err
+// 	}
+
+// 	// Define the Vault transit key mount point
+// 	transitKeyMountPoint := fmt.Sprintf("transit/keys/%s", tenantName)
+
+// 	// Read the transit key metadata from Vault
+// 	transitKeyData, err := client.Logical().Read(transitKeyMountPoint)
+// 	if err != nil {
+// 		log.Error(err, "Failed to read Vault key")
+// 		return nil, err
+// 	}
+
+// 	// If no data is found, return an error
+// 	if transitKeyData == nil {
+// 		log.Info(fmt.Sprintf("No transit key data found for mount point %s", transitKeyMountPoint))
+// 		return nil, fmt.Errorf("no transit key data found for tenant %s", tenantName)
+// 	}
+// 	// Validate key data
+// 	if transitKeyData.Data["keys"] == nil {
+// 		log.Error(nil, "Vault key data is empty or malformed")
+// 		return nil, fmt.Errorf("malformed or empty Vault key data for tenant %s", tenantName)
+// 	}
+
+// 	// Extra Log data to check
+// 	jsonStr, _ := json.Marshal(transitKeyData.Data["keys"])
+// 	log.Info(fmt.Sprintf("Fetched Vault key data for tenant %s: %s", tenantName, string(jsonStr)))
+
+// 	return transitKeyData, nil
+// }

@@ -105,6 +105,8 @@ type TenantSpec struct {
 	TenantKmsResource TenantKmsResource `json:"tenantkms"`
 	//+kubebuilder:validation:Optional
 	TenantHooks []TenantHook `json:"tenanthooks"`
+	//+kubebuilder:validation:Optional
+	RequiresVaultKeyUpdate bool `json:"requiresVaultKeyUpdate,omitempty"`
 } //@name TenantSpec
 
 // @Description The observed state of Tenant

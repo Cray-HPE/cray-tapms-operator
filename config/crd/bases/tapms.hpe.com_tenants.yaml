@@ -291,6 +291,8 @@ spec:
                 type: array
               state:
                 type: string
+              requiresVaultKeyUpdate:
+                type: boolean
               tenanthooks:
                 items:
                   description: '@Description The webhook definition to call an API
