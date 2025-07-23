@@ -16,11 +16,14 @@ pipeline {
 
         OPERATOR_DESCRIPTION = "HPE Tenant and Partition Management Service Operator"
         OPERATOR_CHART_NAME = "cray-tapms-operator"
+        OPERATOR_CHART_PATTERN = "cray-tapms-operator-*.tgz"
         OPERATOR_CHART_VERSION = getChartVersion(name: env.OPERATOR_CHART_NAME, isStable: env.IS_STABLE)
+
         DOCKER_ARGS = getDockerBuildArgs(name: env.OPERATOR_CHART_NAME, description: env.OPERATOR_DESCRIPTION)
 
         CRD_DESCRIPTION = "HPE Tenant and Partition Management Service CRD Chart"
         CRD_CHART_NAME = "cray-tapms-crd"
+        CRD_CHART_PATTERN = "cray-tapms-crd-*.tgz"
         CRD_CHART_VERSION = getChartVersion(name: env.CRD_CHART_NAME, isStable: env.IS_STABLE)
     }
 
@@ -46,8 +49,8 @@ pipeline {
             steps {
                 script {
                     publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
-                    publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
-                    publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
+                    publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", chartsPattern: env.OPERATOR_CHART_PATTERN, isStable: env.IS_STABLE)
+                    publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", chartsPattern: env.CRD_CHART_PATTERN, isStable: env.IS_STABLE)
                 }
             }
         }
