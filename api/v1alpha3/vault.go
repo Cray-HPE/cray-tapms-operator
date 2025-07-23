@@ -60,30 +60,40 @@ var kubeClient client.Client
 
 // init method is needed for new code to properly update the tenant spec
 func init() {
-	fmt.Sprintf("Init was reached")
-	kubeConfig := config.GetConfigOrDie()
-	kubeClient, err := client.New(kubeConfig, client.Options{})
+	fmt.Println("Init was reached")
 
-	if kubeClient != nil {
-		fmt.Sprintf("It is not null")
+	kubeConfig := config.GetConfigOrDie()
+	fmt.Println("Init: Kubernetes configuration successfully retrieved")
+
+	var err error
+	kubeClient, err = client.New(kubeConfig, client.Options{})
+	if err != nil {
+		panic(fmt.Sprintf("Init: Failed to initialize Kubernetes client: %v", err))
 	}
 
-	if err != nil {
-		panic(fmt.Sprintf("Failed to initialize Kubernetes client: %v", err))
+	if kubeClient != nil {
+		fmt.Println("Init: kubeClient successfully initialized")
+	} else {
+		fmt.Println("Init: kubeClient is still nil after initialization")
 	}
 }
 
 func starter() {
-	fmt.Sprintf("Starter was reached")
-	kubeConfig := config.GetConfigOrDie()
-	kubeClient, err := client.New(kubeConfig, client.Options{})
+	fmt.Println("Starter was reached")
 
-	if kubeClient != nil {
-		fmt.Sprintf("It is not null")
+	kubeConfig := config.GetConfigOrDie()
+	fmt.Println("Starter: Kubernetes configuration successfully retrieved")
+
+	var err error
+	kubeClient, err = client.New(kubeConfig, client.Options{})
+	if err != nil {
+		panic(fmt.Sprintf("Starter: Failed to initialize Kubernetes client: %v", err))
 	}
 
-	if err != nil {
-		panic(fmt.Sprintf("Failed to initialize Kubernetes client: %v", err))
+	if kubeClient != nil {
+		fmt.Println("Starter: kubeClient successfully initialized")
+	} else {
+		fmt.Println("Starter: kubeClient is still nil after initialization")
 	}
 }
 
@@ -267,6 +277,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
 			log.Info(fmt.Sprintf("Current value of requiresVaultKeyUpdate from vault: %v", t.Spec.RequiresVaultKeyUpdate))
 			// new conditional to check if keys need to be updated
+
 			if t.Spec.RequiresVaultKeyUpdate {
 				// TODO: Update the k8s status (t.Status.TenantKmsStatus.PublicKey) here again
 				// to pick up any new key(s) that could have been created by rotation.
