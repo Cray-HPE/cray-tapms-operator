@@ -34,8 +34,8 @@ import (
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	//"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/google/uuid"
 	vault "github.com/hashicorp/vault/api"
@@ -56,46 +56,46 @@ var k8s_service_account_token_path = "/var/run/secrets/kubernetes.io/serviceacco
 var tapms_transit_prefix = "cray-tenant-"
 
 // New global variable needed for making the changes to the spec permanent
-var kubeClient client.Client
+//var kubeClient client.Client
 
 // init method is needed for new code to properly update the tenant spec
-func init() {
-	fmt.Println("Init was reached")
+// func init() {
+// 	fmt.Println("Init was reached")
 
-	kubeConfig := config.GetConfigOrDie()
-	fmt.Println("Init: Kubernetes configuration successfully retrieved")
+// 	kubeConfig := config.GetConfigOrDie()
+// 	fmt.Println("Init: Kubernetes configuration successfully retrieved")
 
-	var err error
-	kubeClient, err = client.New(kubeConfig, client.Options{})
-	if err != nil {
-		panic(fmt.Sprintf("Init: Failed to initialize Kubernetes client: %v", err))
-	}
+// 	var err error
+// 	kubeClient, err = client.New(kubeConfig, client.Options{})
+// 	if err != nil {
+// 		panic(fmt.Sprintf("Init: Failed to initialize Kubernetes client: %v", err))
+// 	}
 
-	if kubeClient != nil {
-		fmt.Println("Init: kubeClient successfully initialized")
-	} else {
-		fmt.Println("Init: kubeClient is still nil after initialization")
-	}
-}
+// 	if kubeClient != nil {
+// 		fmt.Println("Init: kubeClient successfully initialized")
+// 	} else {
+// 		fmt.Println("Init: kubeClient is still nil after initialization")
+// 	}
+// }
 
-func starter() {
-	fmt.Println("Starter was reached")
+// func starter() {
+// 	fmt.Println("Starter was reached")
 
-	kubeConfig := config.GetConfigOrDie()
-	fmt.Println("Starter: Kubernetes configuration successfully retrieved")
+// 	kubeConfig := config.GetConfigOrDie()
+// 	fmt.Println("Starter: Kubernetes configuration successfully retrieved")
 
-	var err error
-	kubeClient, err = client.New(kubeConfig, client.Options{})
-	if err != nil {
-		panic(fmt.Sprintf("Starter: Failed to initialize Kubernetes client: %v", err))
-	}
+// 	var err error
+// 	kubeClient, err = client.New(kubeConfig, client.Options{})
+// 	if err != nil {
+// 		panic(fmt.Sprintf("Starter: Failed to initialize Kubernetes client: %v", err))
+// 	}
 
-	if kubeClient != nil {
-		fmt.Println("Starter: kubeClient successfully initialized")
-	} else {
-		fmt.Println("Starter: kubeClient is still nil after initialization")
-	}
-}
+// 	if kubeClient != nil {
+// 		fmt.Println("Starter: kubeClient successfully initialized")
+// 	} else {
+// 		fmt.Println("Starter: kubeClient is still nil after initialization")
+// 	}
+// }
 
 // Create the tenant Vault transit engine
 func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.Result, error) {
@@ -283,7 +283,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				// to pick up any new key(s) that could have been created by rotation.
 				// Pull the key that is saved in vault to check if it matches what is
 				// saved in the tenant status
-				fmt.Println("New test to make sure inside conditional was hit.")
+				fmt.Println("Custom test to make sure inside conditional was hit.")
 				// Read the transit key metadata
 				transit_key_data, err = client.Logical().Read(transit_key_mount_point)
 				if err != nil {
@@ -295,6 +295,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				log.Info(fmt.Sprintf("NewJson value is: (%s)", newJson))
 				log.Info(fmt.Sprintf("existingJson value is: (%s)", exsistingJson))
 				// No longer updating field to false on here
+				//t.Spec.RequiresVaultKeyUpdate = false
 				//log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate after update to false from vault: %v", t.Spec.RequiresVaultKeyUpdate))
 
 				// new conditional to try
@@ -326,17 +327,17 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				log.Info(fmt.Sprintf("Current value of field requiresVaultKeyUpdate from vault before update: %v", t.Spec.RequiresVaultKeyUpdate))
 				t.Spec.RequiresVaultKeyUpdate = false
 				log.Info(fmt.Sprintf("Current value of field requiresVaultKeyUpdate from vault after update: %v", t.Spec.RequiresVaultKeyUpdate))
-				starter()
-				if kubeClient == nil {
-					log.Error(nil, "kubeClient is nil. Ensure it is properly initialized in the init() method.")
-					return ctrl.Result{}, fmt.Errorf("global kubeClient is not initialized: kubeClient is nil in CreateVaultTransit. Check the init() method in vault.go")
-				}
+				//starter()
+				// if kubeClient == nil {
+				// 	log.Error(nil, "kubeClient is nil. Ensure it is properly initialized in the init() method.")
+				// 	return ctrl.Result{}, fmt.Errorf("global kubeClient is not initialized: kubeClient is nil in CreateVaultTransit. Check the init() method in vault.go")
+				// }
 
-				err = kubeClient.Update(ctx, t)
-				if err != nil {
-					log.Error(err, fmt.Sprintf("Failed to update Tenant resource: %v. Tenant details: %+v", err, t))
-					return ctrl.Result{}, fmt.Errorf("Within vault failed to update Tenant resource. Error: %v. Tenant details: %+v", err, t)
-				}
+				// err = kubeClient.Update(ctx, t)
+				// if err != nil {
+				// 	log.Error(err, fmt.Sprintf("Failed to update Tenant resource: %v. Tenant details: %+v", err, t))
+				// 	return ctrl.Result{}, fmt.Errorf("Within vault failed to update Tenant resource. Error: %v. Tenant details: %+v", err, t)
+				// }
 
 				log.Info(fmt.Sprintf("Current value of requiresVaultKeyUpdate from vault after global update: %v", t.Spec.RequiresVaultKeyUpdate))
 
