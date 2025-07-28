@@ -16,11 +16,14 @@ pipeline {
 
         OPERATOR_DESCRIPTION = "HPE Tenant and Partition Management Service Operator"
         OPERATOR_CHART_NAME = "cray-tapms-operator"
+        OPERATOR_CHART_PATTERN = "cray-tapms-operator-*.tgz"
         OPERATOR_CHART_VERSION = getChartVersion(name: env.OPERATOR_CHART_NAME, isStable: env.IS_STABLE)
+
         DOCKER_ARGS = getDockerBuildArgs(name: env.OPERATOR_CHART_NAME, description: env.OPERATOR_DESCRIPTION)
 
         CRD_DESCRIPTION = "HPE Tenant and Partition Management Service CRD Chart"
         CRD_CHART_NAME = "cray-tapms-crd"
+        CRD_CHART_PATTERN = "cray-tapms-crd-*.tgz"
         CRD_CHART_VERSION = getChartVersion(name: env.CRD_CHART_NAME, isStable: env.IS_STABLE)
     }
 
@@ -47,24 +50,8 @@ pipeline {
                 script {
                     // try upload of just crd chart since I already have the operator chart
                     publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
+                    publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
                     publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
-                    
-                    // solution where only operator chart is uploaded
-            //  publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
-            // // Publish only the operator Helm chart as a fix to duplicate problem
-            // // This should work as  cray-tapms-operator chart should already be included in the CRD definitions (via dependencies or templates)
-            // // Both are packaged into the same directory of ${WORKSPACE}/kubernetes/.packaged so this should work
-            // publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
-
-                    // original solution
-                    // publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
-                    // publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
-                    // publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
-
-                    // This is the failed solution of having them both charts be in seperate places
-                    // publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
-                    // publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/operator/.packaged", isStable: env.IS_STABLE)
-                    // publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/crd/.packaged", isStable: env.IS_STABLE)
                 }
             }
         }

@@ -125,16 +125,10 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		log.Info("Creating/updating Vault transit for: " + tenant.Spec.TenantName)
 		result, err = alphav3.CreateVaultTransit(ctx, log, tenant)
-		// reset the field from the tenant controller
-		log.Info("Brett next print statement to make sure new version is active")
-		log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate from tenant controller before conditional: %v", tenant.Spec.RequiresVaultKeyUpdate))
+
+		// This block checks if the `RequiresVaultKeyUpdate` field is true. If so, it resets the field to false
+		// by creating and applying a patch to the Kubernetes API, ensuring the change is persisted in the cluster.
 		if tenant.Spec.RequiresVaultKeyUpdate {
-			// tenant.Spec.RequiresVaultKeyUpdate = false
-			// if err := r.Client.Update(ctx, tenant); err != nil {
-			// 	log.Error(err, "Failed to reset requiresVaultKeyUpdate field in tenant spec")
-			// 	return ctrl.Result{}, err
-			// }
-			// log.Info(fmt.Sprintf("requiresVaultKeyUpdate reset to false for tenant (%s)", tenant.Name))
 			patch := client.MergeFrom(tenant.DeepCopy())
 			tenant.Spec.RequiresVaultKeyUpdate = false
 
@@ -142,13 +136,12 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				log.Error(err, "Failed to patch requiresVaultKeyUpdate field")
 				return ctrl.Result{}, err
 			}
-			log.Info(fmt.Sprintf("From tenant controller requiresVaultKeyUpdate reset to false for tenant (%s)", tenant.Name))
+			log.Info(fmt.Sprintf("Reset requiresVaultKeyUpdate to false for tenant (%s)", tenant.Name))
 		}
 		if err != nil {
 			log.Error(err, "Failed to create/update Vault transit")
 			return result, err
 		}
-		log.Info(fmt.Sprintf("Value of requiresVaultKeyUpdate from tenant controller after update to false: %v", tenant.Spec.RequiresVaultKeyUpdate))
 
 		if !reflect.DeepEqual(alphav3.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {
 			//
