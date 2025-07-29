@@ -50,8 +50,8 @@ pipeline {
                 script {
                     // try upload of just crd chart since I already have the operator chart
                     publishCsmDockerImage(image: env.OPERATOR_CHART_NAME, tag: env.DOCKER_VERSION, isStable: env.IS_STABLE)
-                    publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
-                    publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", isStable: env.IS_STABLE)
+                    publishCsmHelmCharts(component: env.OPERATOR_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", chartsPattern: env.OPERATOR_CHART_PATTERN, isStable: env.IS_STABLE)
+                    publishCsmHelmCharts(component: env.CRD_CHART_NAME, chartsPath: "${WORKSPACE}/kubernetes/.packaged", chartsPattern: env.CRD_CHART_PATTERN, isStable: env.IS_STABLE)
                 }
             }
         }
