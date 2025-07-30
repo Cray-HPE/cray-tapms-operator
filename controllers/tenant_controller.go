@@ -129,8 +129,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// This block checks if the `RequiresVaultKeyUpdate` field is true. If so, it resets the field to false
 		// by creating and applying a patch to the Kubernetes API, ensuring the change is persisted in the cluster.
 		if tenant.Spec.RequiresVaultKeyUpdate {
-			patch := client.MergeFrom(tenant.DeepCopy())
 			tenant.Spec.RequiresVaultKeyUpdate = false
+			patch := client.MergeFrom(tenant.DeepCopy())
 
 			if err := r.Client.Patch(ctx, tenant, patch); err != nil {
 				log.Error(err, "Failed to patch requiresVaultKeyUpdate field")
