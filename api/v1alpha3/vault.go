@@ -260,7 +260,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 
 					// data is available for "keys". In this form, if someone had performed key
 					// rotation in Vault, multiple keys will be listed. It will be up to the tenant
-					// admin to know which key to use since any key rotation is outisde of scope of
+					// admin to know which key to use since any key rotation is outside of scope of
 					// what tapms is responsible for managing.
 					jsonStr, err := json.Marshal(transit_key_data.Data["keys"])
 					if err != nil {
@@ -270,6 +270,8 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 						t.Status.TenantKmsStatus.PublicKey = string(jsonStr)
 					}
 				}
+				// Resets the field to false after rotation
+				t.Spec.RequiresVaultKeyUpdate = false
 			}
 		}
 	} else {
