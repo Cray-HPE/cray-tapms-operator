@@ -341,6 +341,10 @@ const docTemplate = `{
                         "vcluster-blue-slurm"
                     ]
                 },
+                "requiresVaultKeyUpdate": {
+                    "type": "boolean",
+                    "example": "false"
+                },
                 "state": {
                     "description": "+kubebuilder:validation:Optional",
                     "type": "string",

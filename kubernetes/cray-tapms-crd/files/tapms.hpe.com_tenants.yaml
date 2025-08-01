@@ -355,6 +355,8 @@ spec:
                   - xnames
                   type: object
                 type: array
+              requiresVaultKeyUpdate: 
+                type: boolean
             required:
             - childnamespaces
             - tenantname
