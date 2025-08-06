@@ -270,8 +270,8 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 						t.Status.TenantKmsStatus.PublicKey = string(jsonStr)
 					}
 				}
-				// Resets the field to false after rotation
-				t.Spec.RequiresVaultKeyUpdate = false
+				// // Resets the field to false after rotation
+				// t.Spec.RequiresVaultKeyUpdate = false
 			}
 		}
 	} else {
