@@ -168,8 +168,15 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			//r.Get(ctx, req.NamespacedName, freshTenant)
 			tenant.Status.TenantResources = tenant.Spec.TenantResources
 			tenant.Status.TenantHooks = tenant.Spec.TenantHooks
-			// updating requiresVaultKeyUpdate to persist the changes
+			// Resets the field to false by creating and applying a patch to the Kubernetes API
+			patch := client.MergeFrom(tenant.DeepCopy())
 			tenant.Spec.RequiresVaultKeyUpdate = false
+
+			if err := r.Client.Patch(ctx, tenant, patch); err != nil {
+				log.Error(err, "Failed to patch requiresVaultKeyUpdate field")
+				return ctrl.Result{}, err
+			}
+
 			log.Info(fmt.Sprintf("Reset value of requiresVaultKeyUpdate to false for tenant (%s)", tenant.Name))
 			tenant.Status.ChildNamespaces = alphav3.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
 
