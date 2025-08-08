@@ -127,18 +127,18 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Info("Creating/updating Vault transit for: " + tenant.Spec.TenantName)
 		result, err = alphav3.CreateVaultTransit(ctx, log, tenant)
 
-		// // Resets the field to false by creating and applying a patch to the Kubernetes API
-		// patch := client.MergeFrom(tenant.DeepCopy())
-		// tenant.Spec.RequiresVaultKeyUpdate = false
+		// This block checks if the `RequiresVaultKeyUpdate` field is true. If so, it resets the field to false
+		// by creating and applying a patch to the Kubernetes API, ensuring the change is persisted in the cluster.
+		if tenant.Spec.RequiresVaultKeyUpdate {
+			patch := client.MergeFrom(tenant.DeepCopy())
+			tenant.Spec.RequiresVaultKeyUpdate = false
 
-		// if err := r.Client.Patch(ctx, tenant, patch); err != nil {
-		// 	log.Error(err, "Failed to patch requiresVaultKeyUpdate field")
-		// 	return ctrl.Result{}, err
-		// }
-		// // Prints the change only when true since the user set it this way
-		// if tenant.Spec.RequiresVaultKeyUpdate {
-		// 	log.Info(fmt.Sprintf("Reset requiresVaultKeyUpdate to false for tenant (%s)", tenant.Name))
-		// }
+			if err := r.Client.Patch(ctx, tenant, patch); err != nil {
+				log.Error(err, "Failed to patch requiresVaultKeyUpdate field")
+				return ctrl.Result{}, err
+			}
+			log.Info(fmt.Sprintf("Reset requiresVaultKeyUpdate to false for tenant (%s)", tenant.Name))
+		}
 
 		if err != nil {
 			log.Error(err, "Failed to create/update Vault transit")
@@ -168,18 +168,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			//r.Get(ctx, req.NamespacedName, freshTenant)
 			tenant.Status.TenantResources = tenant.Spec.TenantResources
 			tenant.Status.TenantHooks = tenant.Spec.TenantHooks
-			// Resets the field to false by creating and applying a patch to the Kubernetes API
-			patch := client.MergeFrom(tenant.DeepCopy())
-			tenant.Spec.RequiresVaultKeyUpdate = false
-
-			if err := r.Client.Patch(ctx, tenant, patch); err != nil {
-				log.Error(err, "Failed to patch requiresVaultKeyUpdate field")
-				return ctrl.Result{}, err
-			}
-
-			log.Info(fmt.Sprintf("Reset value of requiresVaultKeyUpdate to false for tenant (%s)", tenant.Name))
 			tenant.Status.ChildNamespaces = alphav3.TranslateSpecNamespacesForStatus(tenant.Spec.TenantName, tenant.Spec.ChildNamespaces)
-
 			err = r.Status().Update(ctx, tenant)
 			if err != nil {
 				log.Error(err, "Failed to update final tenant status")
