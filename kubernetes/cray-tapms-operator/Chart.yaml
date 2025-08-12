@@ -33,7 +33,7 @@ home: https://github.com/Cray-HPE/cray-tapms-operator
 sources:
   - https://github.com/Cray-HPE/cray-tapms-operator
 maintainers:
-  - name: bklein
+  - name: ndavidson
 annotations:
   artifacthub.io/license: MIT
   artifacthub.io/images: |

@@ -31,6 +31,6 @@ home: https://github.com/Cray-HPE/cray-tapms-crd
 sources:
   - https://github.com/Cray-HPE/cray-tapms-crd
 maintainers:
-  - name: bklein
+  - name: ndavidson
 annotations:
   artifacthub.io/license: MIT
