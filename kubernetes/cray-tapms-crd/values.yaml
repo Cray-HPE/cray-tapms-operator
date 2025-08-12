@@ -23,6 +23,6 @@
 #
 util:
   image:
-    repository: artifactory.algol60.net/csm-docker/stable/docker.io/demisto/boto3py3
-    tag: kubectl_v1_21_12_1.0.0.49259
+    repository: artifactory.algol60.net/csm-docker/stable/docker-kubectl
+    tag: 1.32.2
     pullPolicy: IfNotPresent
