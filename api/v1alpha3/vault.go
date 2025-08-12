@@ -233,7 +233,6 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 			// Case where there is already a transit key in vault
 
 			log.Info(fmt.Sprintf("Found existing transit key for tenant (%s)", t.Spec.TenantName))
-
 			// Pull the key that is saved in vault to check if it matches what is
 			// saved in the tenant status
 
@@ -250,9 +249,17 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				log.Info(fmt.Sprintf("Nil transit key data for mount point(%s)", transit_key_mount_point))
 				return ctrl.Result{}, err
 			} else if string(newJson) == exsistingJson {
-				fmt.Println("Transit Key matches exisiting saved key")
+				log.Info(fmt.Sprintf("Transit Key matches exisiting saved key"))
 				return ctrl.Result{}, nil
 			} else {
+				// Display the transit key metadata as json in the k8s tapms status.
+				// Note: to see more detail such as the min/max supported encryption version,
+				// marshal the entire transit_key_data structure. This will be useful when
+				// tenant admins start to work with key rotation. For now, this form will display whatever
+				// data is available for "keys". In this form, if someone had performed key
+				// rotation in Vault, multiple keys will be listed. It will be up to the tenant
+				// admin to know which key to use since any key rotation is outisde of scope of
+				// what tapms is responsible for managing.
 				jsonStr, err := json.Marshal(transit_key_data.Data["keys"])
 				if err != nil {
 					fmt.Printf("Error: %s", err.Error())
