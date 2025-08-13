@@ -127,10 +127,18 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		vaultUpdate := tenant.Spec.RequiresVaultKeyUpdate
 		log.Info("Creating/updating Vault transit for: " + tenant.Spec.TenantName)
 		result, err = alphav3.CreateVaultTransit(ctx, log, tenant)
-
 		if err != nil {
 			log.Error(err, "Failed to create/update Vault transit")
 			return result, err
+		}
+
+		if vaultUpdate && !tenant.Spec.RequiresVaultKeyUpdate {
+			err = r.Update(ctx, tenant)
+			if err != nil {
+				log.Error(err, "Failed to update tenant resource")
+				return ctrl.Result{}, err
+			}
+			vaultUpdate = false
 		}
 
 		if !reflect.DeepEqual(alphav3.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {
@@ -145,7 +153,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 
-		if alphav3.TenantIsUpdated(tenant) || vaultUpdate {
+		if alphav3.TenantIsUpdated(tenant) {
 			log.Info("Updating tenant status")
 			//
 			// Grab a fresh copy of the tenant to ensure we have

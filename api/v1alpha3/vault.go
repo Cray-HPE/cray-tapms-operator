@@ -250,6 +250,7 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				return ctrl.Result{}, err
 			} else if string(newJson) == exsistingJson {
 				log.Info(fmt.Sprintf("Transit Key matches exisiting saved key"))
+				t.Spec.RequiresVaultKeyUpdate = false
 				return ctrl.Result{}, nil
 			} else {
 				// Display the transit key metadata as json in the k8s tapms status.
