@@ -159,6 +159,8 @@ definitions:
         items:
           $ref: '#/definitions/TenantResource'
         type: array
+      requiresVaultKeyUpdate:
+        type: boolean
     required:
     - tenantname
     - tenantresources

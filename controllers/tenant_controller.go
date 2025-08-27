@@ -78,6 +78,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	isTenantMarkedToBeDeleted := tenant.GetDeletionTimestamp() != nil
 	if !isTenantMarkedToBeDeleted {
+
 		tenant.Spec.State = "Deploying"
 		result, err := alphav3.CreateSubanchorNs(ctx, log, r.Client, "tenants", tenant.Spec.TenantName)
 		if err != nil {
@@ -102,6 +103,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			if len(resource.HsmPartitionName) > 0 {
 				log.Info(fmt.Sprintf("Creating/updating HSM partition for %s and resource type %s", tenant.Spec.TenantName, resource.Type))
 				result, err := alphav3.UpdateHSMPartition(ctx, log, tenant, resource.HsmPartitionName, resource.Xnames)
+
 				if err != nil {
 					log.Error(err, "Failed to create/update HSM partition")
 					return result, err
@@ -122,11 +124,21 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return result, err
 		}
 
+		vaultUpdate := tenant.Spec.RequiresVaultKeyUpdate
 		log.Info("Creating/updating Vault transit for: " + tenant.Spec.TenantName)
 		result, err = alphav3.CreateVaultTransit(ctx, log, tenant)
 		if err != nil {
 			log.Error(err, "Failed to create/update Vault transit")
 			return result, err
+		}
+
+		if vaultUpdate && !tenant.Spec.RequiresVaultKeyUpdate {
+			err = r.Update(ctx, tenant)
+			if err != nil {
+				log.Error(err, "Failed to update tenant resource")
+				return ctrl.Result{}, err
+			}
+			vaultUpdate = false
 		}
 
 		if !reflect.DeepEqual(alphav3.TranslateStatusNamespacesForSpec(tenant.Status.ChildNamespaces), tenant.Spec.ChildNamespaces) {

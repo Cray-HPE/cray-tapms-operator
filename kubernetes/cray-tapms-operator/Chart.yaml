@@ -25,7 +25,7 @@
 #
 apiVersion: v2
 name: cray-tapms-operator
-version: 1.9.1
+version: 1.10.0
 description: Tenant and Partition Management Operator
 keywords:
   - cray-tapms
@@ -33,9 +33,9 @@ home: https://github.com/Cray-HPE/cray-tapms-operator
 sources:
   - https://github.com/Cray-HPE/cray-tapms-operator
 maintainers:
-  - name: bklein
+  - name: ndavidson
 annotations:
   artifacthub.io/license: MIT
   artifacthub.io/images: |
     - name: cray-tapms-operator
-      image: artifactory.algol60.net/csm-docker/stable/cray-tapms-operator:v1.9.1
+      image: artifactory.algol60.net/csm-docker/stable/cray-tapms-operator:v1.10.0
