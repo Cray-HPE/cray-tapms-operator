@@ -216,7 +216,6 @@ func CreateVaultTransit(ctx context.Context, log logr.Logger, t *Tenant) (ctrl.R
 				// Note: to see more detail such as the min/max supported encryption version,
 				// marshal the entire transit_key_data structure. This will be useful when
 				// tenant admins start to work with key rotation. For now, this form will display whatever
-
 				// data is available for "keys". In this form, if someone had performed key
 				// rotation in Vault, multiple keys will be listed. It will be up to the tenant
 				// admin to know which key to use since any key rotation is outisde of scope of
